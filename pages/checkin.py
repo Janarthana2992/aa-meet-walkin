@@ -14,16 +14,6 @@ def render_checkin_page(db: Database):
 
     st.header("Search & Check-In")
 
-    attendees = db.get_all_attendees()
-
-    if not attendees:
-
-        st.warning("No attendees found.")
-
-        return
-
-    df = pd.DataFrame(attendees)
-
     # Filters
     col1, col2, col3 = st.columns(3)
 
@@ -59,73 +49,38 @@ def render_checkin_page(db: Database):
 
         )
 
-    # Filter Data
-    filtered_df = df.copy()
+    if selected_batch == "All" and not search_name.strip() and not search_mobile.strip():
+        st.info("Enter search criteria to find attendees. Showing recent registrations by default.")
 
-    if selected_batch != "All":
+    # Fetch data based on search
+    batch_val = selected_batch if selected_batch != "All" else None
+    name_val = search_name.strip() if search_name.strip() else None
+    mobile_val = search_mobile.strip() if search_mobile.strip() else None
 
-        filtered_df = filtered_df[
+    # Limit search results strictly to prevent widget rendering crashes
+    attendees = db.search_attendees(
+        batch=batch_val,
+        name=name_val,
+        mobile=mobile_val,
+        limit=20
+    )
 
-            filtered_df["batch_year"]
-            .astype(str)
-            == selected_batch
+    if not attendees:
+        st.warning("Attendee not found.")
+        st.info("Please proceed with Walk-In Registration.")
+        return
 
-        ]
-
-    if search_name.strip():
-
-        filtered_df = filtered_df[
-
-            filtered_df["name"]
-            .astype(str)
-            .str.lower()
-            .str.contains(
-                search_name.lower(),
-                na=False
-            )
-
-        ]
-
-    if search_mobile.strip():
-
-        filtered_df = filtered_df[
-
-            filtered_df["mobile"]
-            .astype(str)
-            .str.contains(
-                search_mobile,
-                na=False
-            )
-
-        ]
+    df = pd.DataFrame(attendees)
 
     # Results
     st.markdown("---")
 
     st.subheader(
-
-        f"Results Found: {len(filtered_df)}"
-
+        f"Results Found: {len(df)} (Max 20 shown)"
     )
 
-    if filtered_df.empty:
-
-        st.warning(
-
-            "Attendee not found."
-
-        )
-
-        st.info(
-
-            "Please proceed with Walk-In Registration."
-
-        )
-
-        return
-
     # Display Results
-    for _, attendee in filtered_df.iterrows():
+    for _, attendee in df.iterrows():
 
         st.markdown("---")
 
@@ -236,7 +191,7 @@ def render_checkin_page(db: Database):
 
                 f"✅ Check-In - {attendee['attendee_id']}",
 
-                key=f"checkin_{attendee['attendee_id']}"
+                key=f"checkin_btn_{attendee['attendee_id']}"
 
             ):
 

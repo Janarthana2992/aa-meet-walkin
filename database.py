@@ -6,14 +6,15 @@ import secrets
 from datetime import datetime
 
 from dotenv import load_dotenv
-from supabase_client import supabase
+from supabase_client import ENV_PATH, SUPABASE_INIT_ERROR, load_project_env, supabase
 
 
 # ---------------------------------------------------
 # ENV CONFIG
 # ---------------------------------------------------
 
-load_dotenv()
+load_project_env()
+load_dotenv(dotenv_path=ENV_PATH)
 
 DB_PATH = os.getenv(
     "DB_PATH",
@@ -216,6 +217,9 @@ class Database:
     def insert_attendee(self, data):
 
         try:
+            if supabase is None:
+                print(SUPABASE_INIT_ERROR)
+                return False
 
             attendee_id = (
                 f"IRTTAA-"
@@ -330,16 +334,19 @@ class Database:
     # GET ALL ATTENDEES
     # ---------------------------------------------------
 
-    def get_all_attendees(self):
+    def get_all_attendees(self, limit=1000):
 
         try:
+            if supabase is None:
+                print(SUPABASE_INIT_ERROR)
+                return []
 
             response = supabase.table(
                 "attendees"
             ).select("*").order(
                 "created_at",
                 desc=True
-            ).execute()
+            ).limit(limit).execute()
 
             return response.data
 
@@ -347,6 +354,32 @@ class Database:
 
             print(e)
 
+            return []
+
+    # ---------------------------------------------------
+    # SEARCH ATTENDEES
+    # ---------------------------------------------------
+
+    def search_attendees(self, batch=None, name=None, mobile=None, limit=20):
+        try:
+            if supabase is None:
+                print(SUPABASE_INIT_ERROR)
+                return []
+
+            query = supabase.table("attendees").select("*")
+
+            if batch and batch != "All":
+                query = query.eq("batch_year", int(batch))
+            if name:
+                query = query.ilike("name", f"%{name}%")
+            if mobile:
+                query = query.ilike("mobile", f"%{mobile}%")
+
+            response = query.order("created_at", desc=True).limit(limit).execute()
+            return response.data
+
+        except Exception as e:
+            print(e)
             return []
 
     # ---------------------------------------------------
@@ -359,6 +392,9 @@ class Database:
     ):
 
         try:
+            if supabase is None:
+                print(SUPABASE_INIT_ERROR)
+                return
 
             supabase.table(
                 "attendees"
