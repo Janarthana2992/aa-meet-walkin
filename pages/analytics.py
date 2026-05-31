@@ -5,13 +5,28 @@ import altair as alt
 from utils import dataframe_from_records
 
 
+@st.cache_data(ttl=60, show_spinner=False)
+def fetch_batch_analytics(_db):
+    return _db.analytics_by_batch()
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def fetch_dept_analytics(_db):
+    return _db.analytics_by_department()
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def fetch_daily_analytics(_db):
+    return _db.analytics_by_date()
+
+
 def render_analytics_page(db):
     st.header("Analytics")
     st.write("Interactive charts and event trends to help volunteers track participation in real time.")
 
-    batch_data = dataframe_from_records(db.analytics_by_batch())
-    dept_data = dataframe_from_records(db.analytics_by_department())
-    daily_data = dataframe_from_records(db.analytics_by_date())
+    batch_data = dataframe_from_records(fetch_batch_analytics(db))
+    dept_data = dataframe_from_records(fetch_dept_analytics(db))
+    daily_data = dataframe_from_records(fetch_daily_analytics(db))
 
     if not batch_data.empty:
         st.subheader("Batch Trend")

@@ -548,6 +548,20 @@ class Database:
         ]
 
     # ---------------------------------------------------
+    # ANALYTICS BY DATE
+    # ---------------------------------------------------
+
+    def analytics_by_date(self):
+        attendees = self.get_all_attendees()
+        summary = {}
+        for attendee in attendees:
+            date_str = attendee.get("created_at", "")
+            if date_str:
+                day = date_str[:10]
+                summary[day] = summary.get(day, 0) + 1
+        return [{"day": k, "count": v} for k, v in summary.items()]
+
+    # ---------------------------------------------------
     # CLOSE SQLITE
     # ---------------------------------------------------
 
