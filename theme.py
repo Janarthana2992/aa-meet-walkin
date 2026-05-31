@@ -312,18 +312,18 @@ SCROLLBAR
 MOBILE RESPONSIVENESS
 --------------------------------------------------- */
 
-@media (max-width: 768px) {
-    .main .block-container {
+@media (max-width: 768px) {{
+    .main .block-container {{
         padding-left: 1rem;
         padding-right: 1rem;
-    }
-    .metric-card {
+    }}
+    .metric-card {{
         padding: 16px;
-    }
-    .metric-card > div:last-child {
+    }}
+    .metric-card > div:last-child {{
         font-size: 24px !important;
-    }
-}
+    }}
+}}
 
 </style>
 
