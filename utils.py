@@ -264,17 +264,19 @@ def calculate_total_amount(
 # PAYMENT SECTION
 # ---------------------------------------------------
 
-def render_payment_section():
+def render_payment_section(options, section_key=""):
 
     membership_type = st.selectbox(
 
         "Membership Type",
 
-        list(MEMBERSHIP_OPTIONS.keys())
+        list(options.keys()),
+        
+        key=f"membership_type_{section_key}"
 
     )
 
-    membership_amount = MEMBERSHIP_OPTIONS[
+    membership_amount = options[
         membership_type
     ]
 
@@ -286,7 +288,9 @@ def render_payment_section():
 
         step=100.0,
 
-        value=0.0
+        value=0.0,
+        
+        key=f"contribution_amount_{section_key}"
 
     )
 
