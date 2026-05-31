@@ -123,36 +123,65 @@ BUTTONS
 .stButton > button {{
 
     width: 100%;
+    min-height: 52px;
 
     border: none;
-
     border-radius: 14px;
 
-    padding: 12px 18px;
+    padding: 14px 22px;
 
+    font-size: 16px;
     font-weight: 700;
+    letter-spacing: 0.3px;
 
-    color: white;
+    color: #FFFFFF !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.20);
 
-    background:
-        linear-gradient(
-            135deg,
-            {PRIMARY_COLOR},
-            {SECONDARY_COLOR}
-        );
+    background: linear-gradient(
+        135deg,
+        #16A34A,
+        #22C55E
+    );
+
+    box-shadow:
+        0 10px 24px rgba(34,197,94,0.35);
 
     transition:
         all 0.25s ease;
 
+    cursor: pointer;
 }}
 
 .stButton > button:hover {{
 
-    transform:
-        translateY(-2px);
+    transform: translateY(-2px);
 
-    opacity: 0.95;
+    background: linear-gradient(
+        135deg,
+        #15803D,
+        #16A34A
+    );
 
+    box-shadow:
+        0 14px 32px rgba(34,197,94,0.45);
+
+    opacity: 1;
+}}
+
+.stButton > button:active {{
+
+    transform: translateY(0px);
+
+    box-shadow:
+        0 6px 16px rgba(34,197,94,0.30);
+}}
+
+.stButton > button:focus {{
+
+    outline: none;
+    box-shadow:
+        0 0 0 3px rgba(34,197,94,0.20),
+        0 10px 24px rgba(34,197,94,0.35);
 }}
 
 /* ---------------------------------------------------
@@ -276,6 +305,25 @@ SCROLLBAR
     border-radius: 20px;
 
 }}
+
+
+
+/* ---------------------------------------------------
+MOBILE RESPONSIVENESS
+--------------------------------------------------- */
+
+@media (max-width: 768px) {
+    .main .block-container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    .metric-card {
+        padding: 16px;
+    }
+    .metric-card > div:last-child {
+        font-size: 24px !important;
+    }
+}
 
 </style>
 
