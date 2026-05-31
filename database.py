@@ -334,26 +334,43 @@ class Database:
     # GET ALL ATTENDEES
     # ---------------------------------------------------
 
-    def get_all_attendees(self, limit=1000):
+    def get_all_attendees(self, limit=None):
 
         try:
             if supabase is None:
                 print(SUPABASE_INIT_ERROR)
                 return []
 
-            response = supabase.table(
-                "attendees"
-            ).select("*").order(
-                "created_at",
-                desc=True
-            ).limit(limit).execute()
+            all_data = []
+            start = 0
+            page_size = 1000
 
-            return response.data
+            while True:
+                end = start + page_size - 1
+
+                query = supabase.table("attendees").select("*").order("created_at", desc=True)
+
+                if limit is not None:
+                    response = query.limit(limit).execute()
+                    all_data.extend(response.data)
+                    break
+                else:
+                    response = query.range(start, end).execute()
+                    data = response.data
+                    if not data:
+                        break
+
+                    all_data.extend(data)
+
+                    if len(data) < page_size:
+                        break
+
+                    start += page_size
+
+            return all_data
 
         except Exception as e:
-
             print(e)
-
             return []
 
     # ---------------------------------------------------
