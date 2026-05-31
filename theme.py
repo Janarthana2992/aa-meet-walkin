@@ -317,9 +317,11 @@ MOBILE RESPONSIVENESS
         padding-left: 1rem;
         padding-right: 1rem;
     }}
+
     .metric-card {{
         padding: 16px;
     }}
+
     .metric-card > div:last-child {{
         font-size: 24px !important;
     }}

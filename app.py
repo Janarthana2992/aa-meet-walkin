@@ -2,6 +2,7 @@ import streamlit as st
 
 from auth import AuthManager
 from database import Database
+from supabase_client import ENV_PATH, get_config_error
 
 from utils import inject_custom_css
 
@@ -44,6 +45,37 @@ def main():
     # ---------------------------------------------------
 
     inject_custom_css()
+
+    # ---------------------------------------------------
+    # ENVIRONMENT CONFIG
+    # ---------------------------------------------------
+
+    config_error = get_config_error()
+
+    if config_error:
+
+        st.error("Application configuration is incomplete.")
+
+        st.warning(config_error)
+
+        st.info(
+            "Add the missing values to the project root .env file, "
+            "then restart Streamlit."
+        )
+
+        st.code(
+            "\n".join(
+                [
+                    f"Expected .env path: {ENV_PATH}",
+                    "Required variables:",
+                    "SUPABASE_URL=...",
+                    "SUPABASE_KEY=...",
+                ]
+            ),
+            language="text"
+        )
+
+        st.stop()
 
     # ---------------------------------------------------
     # DATABASE

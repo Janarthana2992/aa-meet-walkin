@@ -1,11 +1,11 @@
 [client]
 showErrorDetails = true
-allowRunOnSave = true
 
 [server]
 maxUploadSize = 200
 headless = true
 port = 8501
+runOnSave = true
 
 [theme]
 primaryColor = "#2d6cdf"
