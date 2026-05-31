@@ -48,93 +48,29 @@ def render_dashboard_page(db):
     # FETCH DATA
     # ---------------------------------------------------
 
-    attendees = db.get_all_attendees()
+    metrics = db.get_metrics()
+    
+    recent_attendees = db.get_all_attendees(limit=10)
 
-    df = dataframe_from_records(attendees)
+    df = dataframe_from_records(recent_attendees)
 
     # ---------------------------------------------------
     # SAFE COUNTS
     # ---------------------------------------------------
 
-    total_registrations = len(df)
+    total_registrations = metrics.get("total", 0)
 
-    checked_in = 0
+    checked_in = metrics.get("checked_in", 0)
 
-    total_collection = 0
+    total_collection = metrics.get("paid", 0)
 
-    walkins = 0
+    walkins = metrics.get("walk_in", 0)
 
-    pre_registered = 0
+    pre_registered = metrics.get("pre_registered", 0)
 
-    total_contribution = 0
+    total_contribution = metrics.get("contribution_total", 0)
 
-    total_membership = 0
-
-    if not df.empty:
-
-        if "checked_in" in df.columns:
-
-            checked_in = (
-                df["checked_in"]
-                .fillna(False)
-                .astype(bool)
-                .sum()
-            )
-
-        if "amount_paid" in df.columns:
-
-            total_collection = (
-                pd.to_numeric(
-                    df["amount_paid"],
-                    errors="coerce"
-                )
-                .fillna(0)
-                .sum()
-            )
-
-        if "registration_type" in df.columns:
-
-            walkins = len(
-
-                df[
-                    df["registration_type"]
-                    ==
-                    "Spot Registration"
-                ]
-
-            )
-
-            pre_registered = len(
-
-                df[
-                    df["registration_type"]
-                    ==
-                    "Pre-Registered"
-                ]
-
-            )
-
-        if "contribution_amount" in df.columns:
-
-            total_contribution = (
-                pd.to_numeric(
-                    df["contribution_amount"],
-                    errors="coerce"
-                )
-                .fillna(0)
-                .sum()
-            )
-
-        if "membership_amount" in df.columns:
-
-            total_membership = (
-                pd.to_numeric(
-                    df["membership_amount"],
-                    errors="coerce"
-                )
-                .fillna(0)
-                .sum()
-            )
+    total_membership = metrics.get("membership_total", 0)
 
     # ---------------------------------------------------
     # KPI CARDS
@@ -288,8 +224,7 @@ def render_dashboard_page(db):
 
             st.dataframe(
 
-                df[display_columns]
-                .tail(10),
+                df[display_columns],
 
                 use_container_width=True,
 
