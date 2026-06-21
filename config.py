@@ -15,9 +15,9 @@ SHORT_ORGANIZATION_NAME = "IRTTAA NuzhAI"
 
 EVENT_NAME = "Coimbatore Chapter Meet - 2026"
 
-EVENT_DATE = "31 May 2026"
+EVENT_DATE = "08 August 2026"
 
-EVENT_LOCATION = "Coimbatore"
+EVENT_LOCATION = "Chennai"
 
 # ---------------------------------------------------
 # BRAND COLORS
