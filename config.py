@@ -13,9 +13,9 @@ SHORT_ORGANIZATION_NAME = "IRTTAA NuzhAI"
 # EVENT
 # ---------------------------------------------------
 
-EVENT_NAME = "Coimbatore Chapter Meet - 2026"
+EVENT_NAME = "Chennai Chapter Meet - 2026"
 
-EVENT_DATE = "08 August 2026"
+EVENT_DATE = "26 September 2026"
 
 EVENT_LOCATION = "Chennai"
 

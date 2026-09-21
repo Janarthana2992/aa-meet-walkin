@@ -154,10 +154,7 @@ class AuthManager:
             for line in dedent(html_content).strip().splitlines()
         )
 
-        st.markdown(
-            html_content,
-            unsafe_allow_html=True
-        )
+        st.html(html_content)
 
     def render_login(self):
 
@@ -493,7 +490,7 @@ class AuthManager:
                         {SHORT_ORGANIZATION_NAME}
                     </div>
                     <div class="login-brand-subtitle">
-                        Coimbatore Chapter Meet 2026
+                        {EVENT_NAME}
                     </div>
                 </div>
             </div>

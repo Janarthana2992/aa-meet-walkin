@@ -71,7 +71,7 @@ def render_navbar(username="Admin"):
 
         """
 
-    st.markdown(
+    st.html(
 
         f"""
 
@@ -166,8 +166,6 @@ def render_navbar(username="Admin"):
 
         </div>
 
-        """,
-
-        unsafe_allow_html=True
+        """
 
     )

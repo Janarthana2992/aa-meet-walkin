@@ -31,7 +31,7 @@ def render_sidebar():
         # BRAND
         # ---------------------------------------------------
 
-        st.markdown(
+        st.html(
 
             f"""
 
@@ -64,9 +64,7 @@ def render_sidebar():
 
             </div>
 
-            """,
-
-            unsafe_allow_html=True
+            """
 
         )
 
@@ -192,7 +190,7 @@ def render_sidebar():
         # FOOTER CARD
         # ---------------------------------------------------
 
-        st.markdown(
+        st.html(
 
             """
 
@@ -236,9 +234,7 @@ def render_sidebar():
 
             </div>
 
-            """,
-
-            unsafe_allow_html=True
+            """
 
         )
 

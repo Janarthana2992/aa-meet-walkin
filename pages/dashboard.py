@@ -1,6 +1,4 @@
 import streamlit as st
-import pandas as pd
-
 from utils import dataframe_from_records
 from components.cards import metric_card, info_row
 
@@ -16,35 +14,8 @@ def render_dashboard_page(db):
     # TITLE
     # ---------------------------------------------------
 
-    st.markdown(
-
-        """
-        <div style="
-            margin-bottom:28px;
-        ">
-
-            <div style="
-                font-size:38px;
-                font-weight:800;
-                color:#0F172A;
-            ">
-                Dashboard
-            </div>
-
-            <div style="
-                font-size:17px;
-                color:#64748B;
-                margin-top:8px;
-            ">
-                Real-time alumni meet overview
-            </div>
-
-        </div>
-        """,
-
-        unsafe_allow_html=True
-
-    )
+    st.title("Dashboard")
+    st.caption("Real-time alumni meet overview")
 
     # ---------------------------------------------------
     # FETCH DATA
@@ -128,7 +99,7 @@ def render_dashboard_page(db):
 
     )
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.divider()
 
     # ---------------------------------------------------
     # SECOND ROW
@@ -172,7 +143,7 @@ def render_dashboard_page(db):
 
     )
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.divider()
 
     # ---------------------------------------------------
     # TABLE SECTION
@@ -184,27 +155,9 @@ def render_dashboard_page(db):
     # RECENT REGISTRATIONS
     # ---------------------------------------------------
 
-    with left:
+    with left, st.container(border=True):
 
-        st.markdown(
-
-            """
-            <div class="metric-card">
-
-                <div style="
-                    font-size:24px;
-                    font-weight:700;
-                    margin-bottom:20px;
-                    color:#0F172A;
-                ">
-                    Recent Registrations
-                </div>
-
-            """,
-
-            unsafe_allow_html=True
-
-        )
+        st.subheader("Recent Registrations")
 
         if not df.empty:
 
@@ -240,36 +193,14 @@ def render_dashboard_page(db):
                 "No registrations found."
             )
 
-        st.markdown(
-            "</div>",
-            unsafe_allow_html=True
-        )
 
     # ---------------------------------------------------
     # LIVE STATUS
     # ---------------------------------------------------
 
-    with right:
+    with right, st.container(border=True):
 
-        st.markdown(
-
-            """
-            <div class="metric-card">
-
-                <div style="
-                    font-size:24px;
-                    font-weight:700;
-                    margin-bottom:20px;
-                    color:#0F172A;
-                ">
-                    Event Status
-                </div>
-
-            """,
-
-            unsafe_allow_html=True
-
-        )
+        st.subheader("Event Status")
 
         percentage = 0
 
@@ -291,26 +222,8 @@ def render_dashboard_page(db):
 
         )
 
-        st.markdown(
-
-            f"""
-
-            <div style="
-                margin-top:18px;
-                font-size:18px;
-                font-weight:700;
-                color:#1E293B;
-            ">
-                {percentage}% Checked-In
-            </div>
-
-            """,
-
-            unsafe_allow_html=True
-
-        )
-
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(f"**{percentage}% checked in**")
+        st.divider()
 
         info_row(
 
@@ -345,10 +258,4 @@ def render_dashboard_page(db):
             walkins
 
         )
-
-        st.markdown(
-            "</div>",
-            unsafe_allow_html=True
-        )
-
 

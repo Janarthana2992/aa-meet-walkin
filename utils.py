@@ -16,13 +16,7 @@ from theme import load_theme
 
 def inject_custom_css():
 
-    st.markdown(
-
-        load_theme(),
-
-        unsafe_allow_html=True
-
-    )
+    st.html(load_theme())
 
 
 # ---------------------------------------------------
@@ -302,7 +296,7 @@ def render_payment_section(options, section_key=""):
 
     )
 
-    st.markdown(
+    st.html(
 
         f"""
 
@@ -326,9 +320,7 @@ def render_payment_section(options, section_key=""):
 
         </div>
 
-        """,
-
-        unsafe_allow_html=True
+        """
 
     )
 
