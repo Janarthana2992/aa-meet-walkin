@@ -10,8 +10,8 @@ def render_admin_panel(db: Database):
     st.write("Manage attendees, apply filters, and export registration data for chapter meets.")
 
     filters = {
-        "batch_year": st.selectbox("Filter by Batch", ["All"] + [str(x[0]) for x in db.analytics_by_batch()]),
-        "department": st.selectbox("Filter by Department", ["All"] + [x[0] for x in db.analytics_by_department()]),
+        "batch_year": st.selectbox("Filter by Batch", ["All"] + [x["category"] for x in db.analytics_by_batch()]),
+        "department": st.selectbox("Filter by Department", ["All"] + [x["category"] for x in db.analytics_by_department()]),
         "payment_status": st.selectbox("Filter by Payment Status", ["All", "Paid", "Pending", "Waived"]),
         "checked_in": st.selectbox("Filter by Check-In Status", ["All", 1, 0]),
     }
@@ -42,9 +42,9 @@ def render_admin_panel(db: Database):
             if attendee:
                 st.subheader("Edit Attendee Details")
                 with st.form(key="edit_attendee_form"):
-                    full_name = st.text_input("Full Name", value=attendee["full_name"])
+                    full_name = st.text_input("Full Name", value=attendee["name"])
                     batch_year = st.text_input("Batch Year", value=attendee["batch_year"])
-                    department = st.text_input("Department", value=attendee["department"])
+                    department = st.text_input("Department", value=attendee["stream"])
                     mobile = st.text_input("Mobile Number", value=attendee["mobile"])
                     email = st.text_input("Email ID", value=attendee["email"])
                     city = st.text_input("City", value=attendee["city"])
@@ -59,9 +59,9 @@ def render_admin_panel(db: Database):
                     db.update_attendee(
                         attendee_id,
                         {
-                            "full_name": full_name.strip().title(),
+                            "name": full_name.strip().title(),
                             "batch_year": batch_year.strip(),
-                            "department": department.strip().title(),
+                            "stream": department.strip().title(),
                             "mobile": mobile.strip(),
                             "email": email.strip(),
                             "city": city.strip().title(),

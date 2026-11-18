@@ -14,85 +14,35 @@ SHORT_ORGANIZATION_NAME = "IRTTAA NuzhAI"
 # ---------------------------------------------------
 
 EVENT_NAME = "Chennai Chapter Meet - 2026"
-
 EVENT_DATE = "26 September 2026"
-
 EVENT_LOCATION = "Chennai"
 
 # ---------------------------------------------------
-# BRAND COLORS
+# TEAL & ORANGE DESIGN SYSTEM
 # ---------------------------------------------------
 
-PRIMARY_COLOR = "#1E5EFF"
-
-SECONDARY_COLOR = "#071B4D"
-
-ACCENT_COLOR = "#F5B301"
-
-SUCCESS_COLOR = "#16A34A"
-
+PRIMARY_COLOR = "#0F766E"
+SECONDARY_COLOR = "#134E4A"
+ACCENT_COLOR = "#F97316"
+SUCCESS_COLOR = "#0F766E"
 WARNING_COLOR = "#F97316"
-
 DANGER_COLOR = "#DC2626"
 
-# ---------------------------------------------------
-# BACKGROUND
-# ---------------------------------------------------
-
-BACKGROUND_COLOR = "#F4F7FE"
-
+BACKGROUND_COLOR = "#F0FDFA"
 CARD_COLOR = "#FFFFFF"
+SIDEBAR_COLOR = "#134E4A"
+SIDEBAR_GRADIENT = "linear-gradient(180deg, #134E4A 0%, #0F766E 100%)"
 
-SIDEBAR_COLOR = "#071B4D"
-
-SIDEBAR_GRADIENT = (
-    "linear-gradient("
-    "180deg,"
-    "#071B4D 0%,"
-    "#0A2472 100%"
-    ")"
-)
-
-# ---------------------------------------------------
-# TEXT COLORS
-# ---------------------------------------------------
-
-TEXT_PRIMARY = "#111827"
-
-TEXT_SECONDARY = "#64748B"
-
+TEXT_PRIMARY = "#102A2A"
+TEXT_SECONDARY = "#58706E"
 TEXT_LIGHT = "#FFFFFF"
 
-# ---------------------------------------------------
-# BORDER / SHADOW
-# ---------------------------------------------------
-
-BORDER_COLOR = "#E2E8F0"
-
-CARD_SHADOW = (
-    "0 10px 30px rgba(0,0,0,0.08)"
-)
-
-# ---------------------------------------------------
-# UI SETTINGS
-# ---------------------------------------------------
+BORDER_COLOR = "#CDE8E3"
+CARD_SHADOW = "0 10px 30px rgba(15, 118, 110, 0.10)"
 
 SIDEBAR_WIDTH = 290
-
 CARD_RADIUS = 20
 
-# ---------------------------------------------------
-# LOGO PATHS
-# ---------------------------------------------------
-
 LOGO_PATH = "assets/IRTTAA_256x256.png"
-
 FALCON_ICON = "assets/IRTTAA.svg"
-
-# ---------------------------------------------------
-# FOOTER
-# ---------------------------------------------------
-
-FOOTER_TEXT = (
-    "Powered by IRTTAA NuzhAI"
-)
+FOOTER_TEXT = "Powered by IRTTAA NuzhAI"

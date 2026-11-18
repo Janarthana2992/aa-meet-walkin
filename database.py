@@ -3,7 +3,7 @@ import sqlite3
 import hashlib
 import secrets
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from supabase_client import ENV_PATH, SUPABASE_INIT_ERROR, load_project_env, supabase
@@ -158,7 +158,7 @@ class Database:
             password
         )
 
-        created_at = datetime.utcnow().isoformat()
+        created_at = datetime.now(timezone.utc).isoformat()
 
         self.execute(
             """
@@ -221,7 +221,7 @@ class Database:
                 print(SUPABASE_INIT_ERROR)
                 return False
 
-            attendee_id = (
+            attendee_id = data.get("attendee_id") or (
                 f"IRTTAA-"
                 f"{secrets.token_hex(4).upper()}"
             )
@@ -310,7 +310,7 @@ class Database:
                 ),
 
                 "created_at":
-                datetime.utcnow().isoformat(),
+                datetime.now(timezone.utc).isoformat(),
 
                 "checked_in": False
 
@@ -400,6 +400,76 @@ class Database:
             return []
 
     # ---------------------------------------------------
+    # ATTENDEE MANAGEMENT
+    # ---------------------------------------------------
+
+    def get_attendee(self, attendee_id=None, mobile=None):
+        """Return one attendee matched by ID or mobile number."""
+        try:
+            if supabase is None:
+                print(SUPABASE_INIT_ERROR)
+                return None
+            if not attendee_id and not mobile:
+                return None
+            query = supabase.table("attendees").select("*")
+            if attendee_id:
+                query = query.eq("attendee_id", attendee_id)
+            else:
+                query = query.eq("mobile", str(mobile))
+            response = query.limit(1).execute()
+            return response.data[0] if response.data else None
+        except Exception as e:
+            print(e)
+            return None
+
+    def update_attendee(self, attendee_id, data):
+        """Update editable attendee fields and report whether the update succeeded."""
+        allowed_fields = {
+            "name", "course", "stream", "batch_year", "email", "mobile",
+            "status", "food_preference", "family_members", "gender", "city",
+            "company", "registration_type", "payment_status", "payment_mode",
+            "amount_paid", "membership_amount", "contribution_amount", "remarks",
+            "checked_in", "checked_in_at",
+        }
+        payload = {key: value for key, value in data.items() if key in allowed_fields}
+        if not attendee_id or not payload or supabase is None:
+            return False
+        try:
+            supabase.table("attendees").update(payload).eq("attendee_id", attendee_id).execute()
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
+    def delete_attendee(self, attendee_id):
+        try:
+            if not attendee_id or supabase is None:
+                return False
+            supabase.table("attendees").delete().eq("attendee_id", attendee_id).execute()
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
+    def list_attendees(self, filters=None):
+        """Return attendees filtered by supported admin-panel fields."""
+        try:
+            if supabase is None:
+                print(SUPABASE_INIT_ERROR)
+                return []
+            field_map = {"department": "stream"}
+            query = supabase.table("attendees").select("*")
+            for field, value in (filters or {}).items():
+                if value in (None, "", "All"):
+                    continue
+                column = field_map.get(field, field)
+                if column in {"batch_year", "stream", "payment_status", "checked_in"}:
+                    query = query.eq(column, value)
+            return query.order("created_at", desc=True).execute().data
+        except Exception as e:
+            print(e)
+            return []
+    # ---------------------------------------------------
     # MARK CHECK-IN
     # ---------------------------------------------------
 
@@ -420,7 +490,7 @@ class Database:
                 "checked_in": True,
 
                 "checked_in_at":
-                datetime.utcnow().isoformat()
+                datetime.now(timezone.utc).isoformat()
 
             }).eq(
                 "attendee_id",

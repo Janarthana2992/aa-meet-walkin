@@ -269,3 +269,4 @@ def render_dashboard_page(db):
 
         for item in activities:
 
+            st.write(item)

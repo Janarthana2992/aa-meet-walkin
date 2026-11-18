@@ -8,8 +8,8 @@ port = 8501
 runOnSave = true
 
 [theme]
-primaryColor = "#2d6cdf"
-backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f0f2f6"
-textColor = "#262730"
+primaryColor = "#0F766E"
+backgroundColor = "#F0FDFA"
+secondaryBackgroundColor = "#CCFBF1"
+textColor = "#102A2A"
 font = "sans serif"

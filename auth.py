@@ -1,4 +1,4 @@
-import base64
+﻿import base64
 import os
 
 from textwrap import dedent
@@ -280,9 +280,9 @@ class AuthManager:
                     gap: 10px;
                     padding: 10px 14px;
                     border-radius: 999px;
-                    background: rgba(22, 163, 74, 0.10);
-                    border: 1px solid rgba(22, 163, 74, 0.16);
-                    color: #15803D;
+                    background: rgba(13, 148, 136, 0.10);
+                    border: 1px solid rgba(13, 148, 136, 0.16);
+                    color: #0F766E;
                     font-size: 13px;
                     font-weight: 900;
                     margin-bottom: 22px;
@@ -337,13 +337,13 @@ class AuthManager:
                     background:
                         linear-gradient(
                             135deg,
-                            #16A34A,
-                            #22C55E
+                            #0F766E,
+                            #14B8A6
                         );
                     color: white;
                     font-size: 15px;
                     font-weight: 950;
-                    box-shadow: 0 10px 22px rgba(22, 163, 74, 0.28);
+                    box-shadow: 0 10px 22px rgba(13, 148, 136, 0.28);
                 }}
 
                 .login-feature strong {{
@@ -369,7 +369,7 @@ class AuthManager:
                 }}
 
                 .login-card-subtitle {{
-                    color: #15803D;
+                    color: #0F766E;
                     font-size: 14px;
                     font-weight: 900;
                     margin-bottom: 20px;
@@ -406,8 +406,8 @@ class AuthManager:
                 }}
 
                 [data-testid="stForm"] input:focus {{
-                    border-color: #16A34A !important;
-                    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14) !important;
+                    border-color: #0F766E !important;
+                    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.14) !important;
                 }}
 
                 [data-testid="stFormSubmitButton"] button {{
@@ -416,21 +416,22 @@ class AuthManager:
                     font-size: 15px;
                     font-weight: 900;
                     color: #FFFFFF !important;
+                    -webkit-text-fill-color: #FFFFFF !important;
                     background:
                         linear-gradient(
                             135deg,
-                            #16A34A,
-                            #22C55E
+                            #0F766E,
+                            #14B8A6
                         );
                     border: 0;
-                    box-shadow: 0 18px 34px rgba(22, 163, 74, 0.28);
+                    box-shadow: 0 18px 34px rgba(13, 148, 136, 0.30);
                     text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
                 }}
 
                 [data-testid="stFormSubmitButton"] button:hover {{
                     color: #FFFFFF !important;
                     transform: translateY(-1px);
-                    box-shadow: 0 22px 42px rgba(22, 163, 74, 0.34);
+                    box-shadow: 0 22px 42px rgba(13, 148, 136, 0.38);
                 }}
 
                 [data-testid="stFormSubmitButton"] button:focus {{

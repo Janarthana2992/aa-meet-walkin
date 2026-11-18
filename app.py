@@ -6,7 +6,6 @@ from supabase_client import ENV_PATH, get_config_error
 
 from utils import inject_custom_css
 
-from components.sidebar import render_sidebar
 from components.navbar import render_navbar
 
 from pages.dashboard import render_dashboard_page
@@ -36,7 +35,7 @@ def main():
 
         layout="wide",
 
-        initial_sidebar_state="expanded"
+        initial_sidebar_state="collapsed"
 
     )
 
@@ -114,26 +113,16 @@ def main():
         return
 
     # ---------------------------------------------------
-    # SIDEBAR
+    # TOP NAVIGATION
     # ---------------------------------------------------
 
-    selected_page, logout = render_sidebar()
+    selected_page, logout = render_navbar(
+        st.session_state.username
+    )
 
     if logout:
-
         auth.logout()
-
         st.rerun()
-
-    # ---------------------------------------------------
-    # NAVBAR
-    # ---------------------------------------------------
-
-    render_navbar(
-
-        st.session_state.username
-
-    )
 
     # ---------------------------------------------------
     # ROUTING

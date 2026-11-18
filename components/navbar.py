@@ -2,170 +2,84 @@ import base64
 
 import streamlit as st
 
-from config import (
-
-    SHORT_ORGANIZATION_NAME,
-
-    EVENT_NAME,
-
-    LOGO_PATH
-
-)
+from config import EVENT_NAME, LOGO_PATH, SHORT_ORGANIZATION_NAME
 
 
-# ---------------------------------------------------
-# IMAGE TO BASE64
-# ---------------------------------------------------
+PRIMARY_PAGES = [
+    "Dashboard",
+    "Walk-In Registration",
+    "Search & Check-In",
+    "Analytics",
+]
+MORE_PAGES = ["More", "Import Data", "Export Data", "Admin Tools"]
+
 
 def get_base64_image(image_path):
-
     try:
-
         with open(image_path, "rb") as image_file:
-
-            encoded = base64.b64encode(
-
-                image_file.read()
-
-            ).decode()
-
-        return encoded
-
+            return base64.b64encode(image_file.read()).decode()
     except Exception:
-
         return None
 
 
-# ---------------------------------------------------
-# NAVBAR
-# ---------------------------------------------------
-
 def render_navbar(username="Admin"):
+    """Render the shared top header and compact event navigation."""
+    if "selected_page" not in st.session_state:
+        st.session_state.selected_page = "Dashboard"
+    if "more_navigation" not in st.session_state:
+        st.session_state.more_navigation = "More"
 
-    logo_base64 = get_base64_image(
-
-        LOGO_PATH
-
-    )
-
+    logo_base64 = get_base64_image(LOGO_PATH)
     logo_html = ""
-
     if logo_base64:
-
-        logo_html = f"""
-
-        <img
-
-            src="data:image/png;base64,{logo_base64}"
-
-            style="
-                width:56px;
-                height:56px;
-                border-radius:50%;
-                object-fit:cover;
-                border:
-                    2px solid rgba(255,255,255,0.18);
-            "
-
-        />
-
-        """
+        logo_html = (
+            f'<img class="app-brand-logo" src="data:image/png;base64,{logo_base64}" '
+            'alt="IRTTAA logo" />'
+        )
 
     st.html(
-
         f"""
-
-        <div style="
-            background:
-                linear-gradient(
-                    135deg,
-                    #071B4D 0%,
-                    #0A2472 100%
-                );
-
-            border-radius:24px;
-
-            padding:20px 28px;
-
-            margin-bottom:28px;
-
-            box-shadow:
-                0 15px 35px rgba(0,0,0,0.12);
-        ">
-
-            <div style="
-                display:flex;
-                justify-content:space-between;
-                align-items:center;
-            ">
-
-                <!-- LEFT -->
-
-                <div style="
-                    display:flex;
-                    align-items:center;
-                    gap:18px;
-                ">
-
-                    {logo_html}
-
-                    <div>
-
-                        <div style="
-                            color:white;
-                            font-size:30px;
-                            font-weight:800;
-                            line-height:1.1;
-                        ">
-                            {SHORT_ORGANIZATION_NAME}
-                        </div>
-
-                        <div style="
-                            color:
-                                rgba(255,255,255,0.72);
-
-                            font-size:15px;
-
-                            margin-top:5px;
-                        ">
-                            {EVENT_NAME}
-                        </div>
-
-                    </div>
-
+        <div class="app-topbar">
+            <div class="app-brand">
+                {logo_html}
+                <div>
+                    <div class="app-brand-name">{SHORT_ORGANIZATION_NAME}</div>
+                    <div class="app-brand-event">{EVENT_NAME}</div>
                 </div>
-
-                <!-- RIGHT -->
-
-                <div style="
-                    display:flex;
-                    align-items:center;
-                    gap:16px;
-                ">
-
-                    <div style="
-                        background:
-                            rgba(255,255,255,0.10);
-
-                        padding:12px 18px;
-
-                        border-radius:14px;
-
-                        color:white;
-
-                        font-weight:700;
-
-                        font-size:15px;
-                    ">
-                        👤 {username}
-                    </div>
-
-                </div>
-
             </div>
-
+            <div class="app-user">&#128100;&nbsp; {username}</div>
         </div>
-
         """
-
     )
+
+    navigation, more, logout_column = st.columns([6.7, 1.45, 1.1])
+    with navigation:
+        nav_columns = st.columns(len(PRIMARY_PAGES))
+        for column, page in zip(nav_columns, PRIMARY_PAGES):
+            active = st.session_state.selected_page == page
+            if column.button(
+                page,
+                key=f"top_nav_{page}",
+                type="primary" if active else "secondary",
+                use_container_width=True,
+            ):
+                st.session_state.selected_page = page
+                st.session_state.more_navigation = "More"
+                st.rerun()
+
+    with more:
+        selected_more = st.selectbox(
+            "More pages",
+            MORE_PAGES,
+            label_visibility="collapsed",
+            key="more_navigation",
+        )
+        if selected_more != "More" and selected_more != st.session_state.selected_page:
+            st.session_state.selected_page = selected_more
+            st.rerun()
+
+    with logout_column:
+        logout = st.button("Logout", key="top_nav_logout", use_container_width=True)
+
+    st.html('<div class="top-nav-divider"></div>')
+    return st.session_state.selected_page, logout

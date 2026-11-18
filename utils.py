@@ -1,4 +1,4 @@
-import io
+﻿import io
 import os
 
 from datetime import datetime
@@ -313,7 +313,7 @@ def render_payment_section(options, section_key=""):
             <div style="
                 font-size:40px;
                 font-weight:800;
-                color:#1E5EFF;
+                color:#0F766E;
             ">
                 ₹{total_amount:,.0f}
             </div>
