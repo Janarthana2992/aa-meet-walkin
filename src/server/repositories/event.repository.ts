@@ -1,9 +1,11 @@
-import { supabase } from "../config/supabase";
+import { supabase, supabaseAdmin } from "../config/supabase";
 import { Event } from "@/types/database.types";
+
+const client = supabaseAdmin || supabase;
 
 export class EventRepository {
   async getAllEvents(): Promise<Event[]> {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from("events")
       .select("*")
       .order("event_date", { ascending: false });
@@ -16,7 +18,7 @@ export class EventRepository {
   }
 
   async getActiveEvent(): Promise<Event | null> {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from("events")
       .select("*")
       .eq("is_active", true)
@@ -32,7 +34,7 @@ export class EventRepository {
   }
 
   async getEventBySlug(slug: string): Promise<Event | null> {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from("events")
       .select("*")
       .eq("slug", slug)
@@ -46,7 +48,7 @@ export class EventRepository {
   }
 
   async getEventById(id: string): Promise<Event | null> {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from("events")
       .select("*")
       .eq("id", id)
@@ -60,7 +62,7 @@ export class EventRepository {
   }
 
   async createEvent(eventData: Partial<Event>): Promise<Event | null> {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from("events")
       .insert(eventData)
       .select()
@@ -74,7 +76,7 @@ export class EventRepository {
   }
 
   async updateEvent(id: string, updates: Partial<Event>): Promise<Event | null> {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from("events")
       .update(updates)
       .eq("id", id)
@@ -88,8 +90,19 @@ export class EventRepository {
     return data as Event;
   }
 
+  async deactivateAllEvents(): Promise<void> {
+    const { error } = await client
+      .from("events")
+      .update({ is_active: false })
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+
+    if (error) {
+      console.error("Error deactivating events:", error.message);
+    }
+  }
+
   async deleteEvent(id: string): Promise<boolean> {
-    const { error } = await supabase.from("events").delete().eq("id", id);
+    const { error } = await client.from("events").delete().eq("id", id);
     if (error) {
       console.error(`Error deleting event ${id}:`, error.message);
       return false;

@@ -25,6 +25,10 @@ export class EventService {
       throw new Error(`An event with slug "${input.slug}" already exists`);
     }
 
+    if (input.isActive) {
+      await eventRepository.deactivateAllEvents();
+    }
+
     const newEvent = await eventRepository.createEvent({
       title: input.title,
       slug: input.slug,
@@ -47,6 +51,10 @@ export class EventService {
   }
 
   async updateEvent(id: string, input: Partial<EventInput>): Promise<Event> {
+    if (input.isActive) {
+      await eventRepository.deactivateAllEvents();
+    }
+
     const updates: Partial<Event> = {};
     if (input.title !== undefined) updates.title = input.title;
     if (input.slug !== undefined) updates.slug = input.slug;

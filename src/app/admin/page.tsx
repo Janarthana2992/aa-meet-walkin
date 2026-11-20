@@ -80,6 +80,7 @@ export default function AdminDashboardPage() {
   const [newEventTime, setNewEventTime] = useState("");
   const [newEventLocation, setNewEventLocation] = useState("");
   const [creatingEvent, setCreatingEvent] = useState(false);
+  const [createEventError, setCreateEventError] = useState<string | null>(null);
 
   // Loading & Error
   const [loading, setLoading] = useState(true);
@@ -293,6 +294,7 @@ export default function AdminDashboardPage() {
   const handleCreateEventSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreatingEvent(true);
+    setCreateEventError(null);
 
     try {
       const res = await fetch("/api/admin/events", {
@@ -310,7 +312,8 @@ export default function AdminDashboardPage() {
         }),
       });
 
-      if (res.ok) {
+      const json = await res.json();
+      if (res.ok && json.success) {
         setShowCreateEvent(false);
         setNewEventTitle("");
         setNewEventSlug("");
@@ -318,11 +321,30 @@ export default function AdminDashboardPage() {
         setNewEventTime("");
         setNewEventLocation("");
         loadEvents();
+      } else {
+        setCreateEventError(json.error || "Failed to create event");
       }
-    } catch (err) {
-      console.error("Failed to create event", err);
+    } catch (err: unknown) {
+      setCreateEventError(
+        err instanceof Error ? err.message : "Failed to create event"
+      );
     } finally {
       setCreatingEvent(false);
+    }
+  };
+
+  const handleSetActiveEvent = async (eventId: string) => {
+    try {
+      const res = await fetch(`/api/admin/events/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: true }),
+      });
+      if (res.ok) {
+        loadEvents();
+      }
+    } catch (err) {
+      console.error("Failed to set active event", err);
     }
   };
 
@@ -822,6 +844,12 @@ export default function AdminDashboardPage() {
                   <h4 className="text-base font-bold text-teal-950 mb-4">
                     Post New Alumni Meet
                   </h4>
+                  {createEventError && (
+                    <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>{createEventError}</span>
+                    </div>
+                  )}
                   <form onSubmit={handleCreateEventSubmit} className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
@@ -961,13 +989,23 @@ export default function AdminDashboardPage() {
                     <span className="font-mono text-teal-600 text-[11px]">
                       Slug: /{ev.slug}
                     </span>
-                    <button
-                      onClick={() => setSelectedEventId(ev.id)}
-                      className="text-xs font-bold text-teal-700 hover:text-teal-950 flex items-center gap-1"
-                    >
-                      <span>Filter Analytics</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {!ev.is_active && (
+                        <button
+                          onClick={() => handleSetActiveEvent(ev.id)}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-teal-800 bg-teal-100 hover:bg-teal-200 border border-teal-200 transition-colors cursor-pointer"
+                        >
+                          Set as Active
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setSelectedEventId(ev.id)}
+                        className="text-xs font-bold text-teal-700 hover:text-teal-950 flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>Filter Analytics</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

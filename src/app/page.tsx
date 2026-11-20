@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Calendar,
@@ -10,12 +11,46 @@ import {
   Shield,
   ArrowRight,
   Sparkles,
-  Users,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { Event } from "@/types/database.types";
 
 export default function HomePage() {
+  const [activeEvent, setActiveEvent] = useState<Event | null>(null);
+
+  useEffect(() => {
+    async function fetchActiveEvent() {
+      try {
+        const res = await fetch("/api/events/active");
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data) {
+            setActiveEvent(json.data);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load active event", err);
+      }
+    }
+    fetchActiveEvent();
+  }, []);
+
+  const formatEventDate = (dateStr?: string) => {
+    if (!dateStr) return "26 September 2026";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col justify-between bg-gradient-to-br from-teal-50 via-teal-100/30 to-amber-50/20">
       {/* Top Navbar */}
@@ -72,10 +107,16 @@ export default function HomePage() {
             transition={{ delay: 0.1 }}
             className="text-4xl sm:text-5xl lg:text-6xl font-black text-teal-950 tracking-tight leading-tight"
           >
-            Chennai Chapter Meet{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-700 via-teal-600 to-orange-500">
-              2026
-            </span>
+            {activeEvent ? (
+              activeEvent.title
+            ) : (
+              <>
+                Chennai Chapter Meet{" "}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-700 via-teal-600 to-orange-500">
+                  2026
+                </span>
+              </>
+            )}
           </motion.h2>
 
           <motion.p
@@ -84,8 +125,8 @@ export default function HomePage() {
             transition={{ delay: 0.2 }}
             className="mt-4 text-lg text-teal-850/80 max-w-2xl mx-auto leading-relaxed"
           >
-            Welcome IRTT Alumni! Fast-track your on-spot registration, collect
-            event badges, and reconnect with fellow batchmates.
+            {activeEvent?.description ||
+              "Welcome IRTT Alumni! Fast-track your on-spot registration, collect event badges, and reconnect with fellow batchmates."}
           </motion.p>
 
           {/* Event Quick Details Banner */}
@@ -97,15 +138,15 @@ export default function HomePage() {
           >
             <div className="flex items-center justify-center space-x-2.5 text-teal-900 font-semibold text-sm">
               <Calendar className="w-4 h-4 text-teal-600" />
-              <span>26 September 2026</span>
+              <span>{formatEventDate(activeEvent?.event_date)}</span>
             </div>
             <div className="flex items-center justify-center space-x-2.5 text-teal-900 font-semibold text-sm">
               <Clock className="w-4 h-4 text-orange-600" />
-              <span>09:30 AM - 05:00 PM</span>
+              <span>{activeEvent?.event_time || "09:30 AM - 05:00 PM"}</span>
             </div>
             <div className="flex items-center justify-center space-x-2.5 text-teal-900 font-semibold text-sm">
               <MapPin className="w-4 h-4 text-teal-600" />
-              <span>Chennai, Tamil Nadu</span>
+              <span>{activeEvent?.location || "Chennai, Tamil Nadu"}</span>
             </div>
           </motion.div>
         </div>
