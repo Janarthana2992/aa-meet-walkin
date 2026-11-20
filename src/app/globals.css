@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --primary: #0f766e;
+    --primary-dark: #134e4a;
+    --accent: #f97316;
+    --background: #f0fdfa;
+    --card-bg: #ffffff;
+    --text-primary: #102a2a;
+    --text-secondary: #58706e;
+    --border: #cde8e3;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    min-height: 100vh;
+  }
+}
