@@ -1,83 +1,166 @@
 import { eventRepository } from "../repositories/event.repository";
-import { EventInput } from "../validators/event.validator";
-import { Event } from "@/types/database.types";
+import {
+  DEFAULT_BATCH_FEE_TIERS,
+  REGISTRATION_MEMBERSHIP_TYPES,
+  RegistrationMembershipType,
+} from "../constants";
+import { EventInput, FeeConfigurationInput } from "../validators/event.validator";
+import { Event, EventFeeConfiguration } from "@/types/database.types";
 
 export class EventService {
   async getAllEvents(): Promise<Event[]> {
     return eventRepository.getAllEvents();
   }
 
-  async getActiveOrUpcomingEvent(): Promise<Event | null> {
+  async getActiveEvent(): Promise<Event | null> {
     const active = await eventRepository.getActiveEvent();
     if (active) return active;
 
-    const events = await eventRepository.getAllEvents();
-    return events.length > 0 ? events[0] : null;
+    const all = await eventRepository.getAllEvents();
+    return all.length > 0 ? all[0] : null;
   }
 
-  async getEventBySlug(slug: string): Promise<Event | null> {
-    return eventRepository.getEventBySlug(slug);
+  async getEventById(eventId: number): Promise<Event | null> {
+    return eventRepository.getEventById(eventId);
   }
 
   async createEvent(input: EventInput): Promise<Event> {
-    const existing = await eventRepository.getEventBySlug(input.slug);
-    if (existing) {
-      throw new Error(`An event with slug "${input.slug}" already exists`);
-    }
-
     if (input.isActive) {
       await eventRepository.deactivateAllEvents();
     }
 
-    const newEvent = await eventRepository.createEvent({
-      title: input.title,
-      slug: input.slug,
-      description: input.description || null,
+    const created = await eventRepository.createEvent({
+      event_name: input.eventName,
+      event_type: input.eventType,
+      chapter_name: input.chapterName,
+      venue: input.venue || null,
       event_date: input.eventDate,
       event_time: input.eventTime || null,
-      location: input.location,
-      venue_details: input.venueDetails || null,
-      status: input.status,
-      banner_url: input.bannerUrl || null,
+      description: input.description || null,
       is_active: input.isActive,
-      registration_open: input.registrationOpen,
     });
 
-    if (!newEvent) {
-      throw new Error("Failed to create event");
-    }
+    // Automatically seed default batch fee rules for all membership tiers
+    await this.seedDefaultFeeConfigurations(created.event_id);
 
-    return newEvent;
+    return created;
   }
 
-  async updateEvent(id: string, input: Partial<EventInput>): Promise<Event> {
+  async seedDefaultFeeConfigurations(
+    eventId: number
+  ): Promise<EventFeeConfiguration[]> {
+    const rows: Partial<EventFeeConfiguration>[] = [];
+
+    for (const membershipType of REGISTRATION_MEMBERSHIP_TYPES) {
+      for (const tier of DEFAULT_BATCH_FEE_TIERS) {
+        rows.push({
+          event_id: eventId,
+          min_graduating_year: tier.minGraduatingYear,
+          max_graduating_year: tier.maxGraduatingYear,
+          membership_type: membershipType,
+          registration_fee: tier.registrationFee,
+          display_order: tier.displayOrder,
+          is_active: true,
+        });
+      }
+    }
+
+    return eventRepository.upsertFeeConfigurations(rows);
+  }
+
+  async updateEvent(
+    eventId: number,
+    input: Partial<EventInput>
+  ): Promise<Event> {
     if (input.isActive) {
       await eventRepository.deactivateAllEvents();
     }
 
     const updates: Partial<Event> = {};
-    if (input.title !== undefined) updates.title = input.title;
-    if (input.slug !== undefined) updates.slug = input.slug;
-    if (input.description !== undefined) updates.description = input.description;
+    if (input.eventName !== undefined) updates.event_name = input.eventName;
+    if (input.eventType !== undefined) updates.event_type = input.eventType;
+    if (input.chapterName !== undefined) updates.chapter_name = input.chapterName;
+    if (input.venue !== undefined) updates.venue = input.venue || null;
     if (input.eventDate !== undefined) updates.event_date = input.eventDate;
-    if (input.eventTime !== undefined) updates.event_time = input.eventTime;
-    if (input.location !== undefined) updates.location = input.location;
-    if (input.venueDetails !== undefined) updates.venue_details = input.venueDetails;
-    if (input.status !== undefined) updates.status = input.status;
-    if (input.bannerUrl !== undefined) updates.banner_url = input.bannerUrl;
+    if (input.eventTime !== undefined) updates.event_time = input.eventTime || null;
+    if (input.description !== undefined)
+      updates.description = input.description || null;
     if (input.isActive !== undefined) updates.is_active = input.isActive;
-    if (input.registrationOpen !== undefined)
-      updates.registration_open = input.registrationOpen;
 
-    const updated = await eventRepository.updateEvent(id, updates);
-    if (!updated) {
-      throw new Error("Event not found or failed to update");
-    }
-    return updated;
+    return eventRepository.updateEvent(eventId, updates);
   }
 
-  async deleteEvent(id: string): Promise<boolean> {
-    return eventRepository.deleteEvent(id);
+  async deleteEvent(eventId: number): Promise<boolean> {
+    return eventRepository.deleteEvent(eventId);
+  }
+
+  async getFeeConfigurations(eventId: number): Promise<EventFeeConfiguration[]> {
+    return eventRepository.getFeeConfigurations(eventId);
+  }
+
+  async updateFeeRules(
+    eventId: number,
+    rules: FeeConfigurationInput[]
+  ): Promise<EventFeeConfiguration[]> {
+    const payload: Partial<EventFeeConfiguration>[] = rules.map((r) => ({
+      event_id: eventId,
+      min_graduating_year: r.minGraduatingYear,
+      max_graduating_year: r.maxGraduatingYear,
+      membership_type: r.membershipType,
+      registration_fee: r.registrationFee,
+      display_order: r.displayOrder,
+      is_active: r.isActive,
+    }));
+
+    return eventRepository.upsertFeeConfigurations(payload);
+  }
+
+  /**
+   * Computes the applicable venue registration fee based on event fee rules,
+   * graduating year, and membership classification.
+   */
+  async calculateRegistrationFee(
+    eventId: number,
+    graduatingYear: number | null | undefined,
+    membershipType: RegistrationMembershipType = "UNREGISTERED_MEMBER"
+  ): Promise<number> {
+    if (!graduatingYear) return 0;
+
+    const rules = await eventRepository.getFeeConfigurations(eventId);
+    const activeRules = rules.filter((r) => r.is_active);
+
+    if (activeRules.length > 0) {
+      const exactMatch = activeRules.find(
+        (r) =>
+          r.membership_type === membershipType &&
+          graduatingYear >= r.min_graduating_year &&
+          graduatingYear <= r.max_graduating_year
+      );
+      if (exactMatch) {
+        return Number(exactMatch.registration_fee) || 0;
+      }
+
+      const yearMatch = activeRules.find(
+        (r) =>
+          graduatingYear >= r.min_graduating_year &&
+          graduatingYear <= r.max_graduating_year
+      );
+      if (yearMatch) {
+        return Number(yearMatch.registration_fee) || 0;
+      }
+    }
+
+    // Fallback to default batch schedule
+    const defaultTier = DEFAULT_BATCH_FEE_TIERS.find(
+      (t) =>
+        graduatingYear >= t.minGraduatingYear &&
+        graduatingYear <= t.maxGraduatingYear
+    );
+    if (defaultTier) {
+      return defaultTier.registrationFee;
+    }
+
+    return graduatingYear >= 2021 ? 0 : 500;
   }
 }
 
