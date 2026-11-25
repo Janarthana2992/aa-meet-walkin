@@ -112,7 +112,7 @@ export class EventService {
       is_active: r.isActive,
     }));
 
-    return eventRepository.upsertFeeConfigurations(payload);
+    return eventRepository.replaceFeeConfigurations(eventId, payload);
   }
 
   /**

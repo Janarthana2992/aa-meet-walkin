@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Users,
+  Download,
 } from "lucide-react";
 import {
   CsvImportSummary,
@@ -117,7 +118,7 @@ export function PreRegistrationsTab({
               <span>Import Event Pre-Registrations CSV</span>
             </h3>
             <p className="text-xs text-teal-700/80 mt-1">
-              Upload the official IRTTAA website export (`event_pre_registrations.csv`). The selected event ID is automatically assigned and re-imports safely avoid duplicates.
+              Upload the event attendees export from the IRTTAA website (columns: Name, Course, Stream, Year, Email, Mobile, Status, Food Preference, Accompanying members). The selected event ID is automatically assigned and re-imports safely avoid duplicates.
             </p>
           </div>
           <div className="min-w-[240px]">
@@ -139,6 +140,24 @@ export function PreRegistrationsTab({
                 </option>
               ))}
             </select>
+            {targetEventId > 0 && (
+              <div className="flex gap-2 mt-2">
+                <a
+                  href={`/api/admin/events/${targetEventId}/export?type=pre-registrations`}
+                  className="flex-1 inline-flex items-center justify-center gap-1 h-8 rounded-lg border border-teal-200 bg-white hover:bg-teal-50 text-[10px] font-bold text-teal-900"
+                >
+                  <Download className="w-3 h-3" />
+                  Pre-registrations CSV
+                </a>
+                <a
+                  href={`/api/admin/events/${targetEventId}/export?type=registrations`}
+                  className="flex-1 inline-flex items-center justify-center gap-1 h-8 rounded-lg border border-teal-200 bg-white hover:bg-teal-50 text-[10px] font-bold text-teal-900"
+                >
+                  <Download className="w-3 h-3" />
+                  Check-ins CSV
+                </a>
+              </div>
+            )}
           </div>
         </div>
 

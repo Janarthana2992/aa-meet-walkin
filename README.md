@@ -83,21 +83,24 @@ npm install
 ```
 
 ### 3. Configure Environment Variables
-Copy `.env.example` to `.env.local` and enter your Supabase project credentials:
 ```bash
 cp .env.example .env.local
 ```
-Edit `.env.local`:
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-or-publishable-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-```
+Fill in `.env.local` (every variable is explained inside the file):
+
+| Variable | What it is |
+| :--- | :--- |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase project URL and publishable key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase **secret** key (Dashboard → Project Settings → API Keys). Server-only. |
+| `AUTH_SECRET` | 32+ random characters for signing logins: `openssl rand -base64 48` |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | The main organizer login (password 8+ characters) |
+| `ADMIN_EMAILS` | Optional extra organizers: comma-separated emails of users created in Supabase → Authentication → Users |
+| `DESK_PIN` | PIN that venue volunteers use to open the check-in desk |
 
 ### 4. Initialize the Supabase Database
-1. Open your **Supabase Dashboard → SQL Editor**.
-2. Copy the entire contents of [`data/DataBase_design/001_nuzhai_schema.sql`](./data/DataBase_design/001_nuzhai_schema.sql) and run it.
-3. This creates all 8 enums, 5 tables, indexes, `updated_at` triggers, Row Level Security policies, and grants.
+In **Supabase Dashboard → SQL Editor**, run in order:
+1. [`001_nuzhai_schema.sql`](./data/DataBase_design/001_nuzhai_schema.sql) — tables, enums, indexes, triggers (fresh projects only; it drops existing tables).
+2. [`002_security_hardening.sql`](./data/DataBase_design/002_security_hardening.sql) — blocks direct public access to the tables, allows only one active event, and adds data-integrity checks. **Set `SUPABASE_SERVICE_ROLE_KEY` first**, otherwise the app loses database access. Safe to run on a database that already has data.
 
 ### 5. Run the Application
 ```bash
@@ -124,10 +127,18 @@ npm run start
 | `/admin/login` | Admin | Login via Supabase Auth user or organizer quick access |
 | `/admin` | Protected | 5-tab Events, Fees, CSV Importers, Directory & Analytics |
 
-**Default Admin Demo Login (`/admin/login`)**:
-- **Email**: `admin@irttaa.org` *(or `admin`)*
-- **Password**: `admin123`
-- Or click **"Organizer Quick Access (Demo)"** on `/admin/login`, or log in with any user created in **Supabase Dashboard → Authentication → Users**.
+**Access**:
+- **Organizers** sign in at `/admin/login` → *Organizer* with `ADMIN_EMAIL` / `ADMIN_PASSWORD`, or as a Supabase Auth user listed in `ADMIN_EMAILS`. They get the full `/admin` dashboard.
+- **Desk volunteers** sign in at `/admin/login` → *Desk Volunteer* with `DESK_PIN`. They can only open `/checkin` (read-only lists).
+- `/` and `/register` stay public so alumni can check themselves in at the venue.
+- Sessions are signed, httpOnly cookies; every `/admin` page and `/api/admin` endpoint is checked on the server (`src/middleware.ts`).
+
+### Running a new event (every time)
+1. **Events & Fee Rules** → *Create New Event* (tick *active* to make it the event shown on `/register`). Default fee rules are created automatically; adjust ranges, membership types and amounts with *Fee Rules*.
+2. **Association Members** → upload the latest `IRTT AA Members.csv` export (adds new members, updates upgrades).
+3. **Pre-Registrations Import** → choose the event → upload the website's *event attendees* CSV. Attendees are matched to association members by email/mobile so they get member pricing.
+4. On the day: share the `DESK_PIN` with volunteers, open `/register` on the kiosk/tablets.
+5. After the event: download *Check-ins CSV* / *Pre-registrations CSV* from **Pre-Registrations Import**, or export the filtered list from **Venue Registrations**.
 
 ---
 
@@ -136,7 +147,7 @@ npm run start
 Sample datasets are included in [`data/Example_data/`](./data/Example_data):
 1. Log into **`/admin/login`** → go to **Events & Fee Rules** → create an event (e.g., *Salem Chapter Meet 2026*).
 2. Go to **Association Members** → upload [`IRTT_AA_Members.csv`](./data/Example_data/IRTT_AA_Members.csv) (26 records).
-3. Go to **Pre-Registrations Import** → select your event and upload [`event_pre_registrations.csv`](./data/Example_data/event_pre_registrations.csv) (19 records).
+3. Go to **Pre-Registrations Import** → select your event and upload [`event_pre_registrations.csv`](./data/Example_data/event_pre_registrations.csv) (19 records, 3 of which match association members).
 4. Open **`/register`** and test all 3 venue journeys:
    - **Pre-Registered**: Search `9597247891` or `msanthosh66@gmail.com` (Batch `2013` → ₹300 fee)
    - **Recognized Association Member**: Search `prabhu1274@gmail.com` (Batch `1995` → ₹500 fee)

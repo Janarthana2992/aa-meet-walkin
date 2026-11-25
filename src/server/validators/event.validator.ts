@@ -18,8 +18,8 @@ export type EventInput = z.infer<typeof eventSchema>;
 
 export const feeConfigurationSchema = z
   .object({
-    minGraduatingYear: z.coerce.number().int().min(1980).max(2035),
-    maxGraduatingYear: z.coerce.number().int().min(1980).max(2035),
+    minGraduatingYear: z.coerce.number().int().min(1950).max(2100),
+    maxGraduatingYear: z.coerce.number().int().min(1950).max(2100),
     membershipType: z.enum(REGISTRATION_MEMBERSHIP_TYPES),
     registrationFee: z.coerce.number().min(0),
     displayOrder: z.coerce.number().int().default(0),

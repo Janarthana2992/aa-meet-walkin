@@ -13,7 +13,13 @@ import {
   Clock,
 } from "lucide-react";
 import { Event, EventFeeConfiguration } from "@/types/database.types";
-import { EVENT_TYPES, EventType, MEMBERSHIP_DISPLAY_LABELS } from "@/server/constants";
+import {
+  EVENT_TYPES,
+  EventType,
+  LATEST_BATCH_YEAR,
+  MEMBERSHIP_DISPLAY_LABELS,
+  REGISTRATION_MEMBERSHIP_TYPES,
+} from "@/server/constants";
 
 interface EventsManagerTabProps {
   events: Event[];
@@ -40,6 +46,7 @@ export function EventsManagerTab({
   // Fee Config Modal State
   const [feeModalEvent, setFeeModalEvent] = useState<Event | null>(null);
   const [feeRules, setFeeRules] = useState<EventFeeConfiguration[]>([]);
+  const [feeError, setFeeError] = useState<string | null>(null);
   const [loadingFees, setLoadingFees] = useState(false);
   const [savingFees, setSavingFees] = useState(false);
 
@@ -105,6 +112,7 @@ export function EventsManagerTab({
 
   const openFeeModal = async (ev: Event) => {
     setFeeModalEvent(ev);
+    setFeeError(null);
     setLoadingFees(true);
     try {
       const res = await fetch(`/api/admin/events/${ev.event_id}/fees`);
@@ -119,6 +127,14 @@ export function EventsManagerTab({
 
   const handleSaveFeeRules = async () => {
     if (!feeModalEvent) return;
+    const badRange = feeRules.find(
+      (r) => !r.min_graduating_year || !r.max_graduating_year || r.min_graduating_year > r.max_graduating_year
+    );
+    if (badRange) {
+      setFeeError("Each rule needs a valid batch range (From must not be after To).");
+      return;
+    }
+    setFeeError(null);
     setSavingFees(true);
     try {
       const payload = feeRules.map((r) => ({
@@ -137,9 +153,14 @@ export function EventsManagerTab({
           body: JSON.stringify({ rules: payload }),
         }
       );
-      if (res.ok) {
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.success) {
         setFeeModalEvent(null);
+      } else {
+        setFeeError(json.error || "Could not save fee rules. Please try again.");
       }
+    } catch {
+      setFeeError("Network error while saving fee rules.");
     } finally {
       setSavingFees(false);
     }
@@ -277,7 +298,7 @@ export function EventsManagerTab({
             </div>
 
             <div className="p-3 rounded-xl bg-teal-50/80 border border-teal-100 text-[11px] text-teal-800 font-medium">
-              Default batch fee tiers (1988–2000: ₹500, 2001–2010: ₹400, 2011–2020: ₹300, 2021–2027: Free) will be automatically created and can be customized anytime.
+              Default batch fee tiers (1988–2000: ₹500, 2001–2010: ₹400, 2011–2020: ₹300, 2021 onwards: Free) will be automatically created and can be customized anytime.
             </div>
 
             <div className="flex justify-end gap-3">
@@ -432,16 +453,56 @@ export function EventsManagerTab({
                         <th className="py-2 pr-3">Batch Range</th>
                         <th className="py-2 pr-3">Fee (₹)</th>
                         <th className="py-2">Active</th>
+                        <th className="py-2" />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-teal-50">
                       {feeRules.map((rule, idx) => (
                         <tr key={rule.fee_configuration_id}>
-                          <td className="py-2 pr-3 font-semibold text-teal-950">
-                            {MEMBERSHIP_DISPLAY_LABELS[rule.membership_type]}
+                          <td className="py-2 pr-3">
+                            <select
+                              aria-label="Membership type"
+                              value={rule.membership_type}
+                              onChange={(e) => {
+                                const updated = [...feeRules];
+                                updated[idx] = {
+                                  ...rule,
+                                  membership_type: e.target
+                                    .value as EventFeeConfiguration["membership_type"],
+                                };
+                                setFeeRules(updated);
+                              }}
+                              className="h-8 px-2 rounded-lg border border-teal-200 font-semibold text-teal-950 bg-white"
+                            >
+                              {REGISTRATION_MEMBERSHIP_TYPES.map((t) => (
+                                <option key={t} value={t}>
+                                  {MEMBERSHIP_DISPLAY_LABELS[t]}
+                                </option>
+                              ))}
+                            </select>
                           </td>
-                          <td className="py-2 pr-3 font-mono text-teal-800">
-                            {rule.min_graduating_year} – {rule.max_graduating_year}
+                          <td className="py-2 pr-3 whitespace-nowrap">
+                            {(["min_graduating_year", "max_graduating_year"] as const).map(
+                              (field, i) => (
+                                <React.Fragment key={field}>
+                                  {i === 1 && <span className="px-1 text-teal-700">–</span>}
+                                  <input
+                                    type="number"
+                                    aria-label={i === 0 ? "From batch" : "To batch"}
+                                    value={rule[field]}
+                                    onChange={(e) => {
+                                      const updated = [...feeRules];
+                                      updated[idx] = {
+                                        ...rule,
+                                        [field]: Number(e.target.value),
+                                      };
+                                      setFeeRules(updated);
+                                    }}
+                                    className="w-20 h-8 px-2 rounded-lg border border-teal-200 font-mono text-teal-950"
+                                  />
+                                </React.Fragment>
+                              )
+                            )}
                           </td>
                           <td className="py-2 pr-3">
                             <input
@@ -474,11 +535,62 @@ export function EventsManagerTab({
                               className="w-4 h-4 accent-teal-700"
                             />
                           </td>
+                          <td className="py-2 pl-2">
+                            <button
+                              type="button"
+                              aria-label="Remove rule"
+                              onClick={() =>
+                                setFeeRules(feeRules.filter((_, i) => i !== idx))
+                              }
+                              className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 cursor-pointer"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const last = feeRules[feeRules.length - 1];
+                    setFeeRules([
+                      ...feeRules,
+                      {
+                        fee_configuration_id: -Date.now(),
+                        event_id: feeModalEvent.event_id,
+                        min_graduating_year: last ? last.max_graduating_year + 1 : 1988,
+                        max_graduating_year: LATEST_BATCH_YEAR,
+                        membership_type: last?.membership_type ?? "UNREGISTERED_MEMBER",
+                        registration_fee: 0,
+                        display_order: (last?.display_order ?? 0) + 1,
+                        is_active: true,
+                        created_at: "",
+                        updated_at: "",
+                      } as EventFeeConfiguration,
+                    ]);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-teal-900 bg-teal-50 hover:bg-teal-100 border border-teal-200 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Fee Rule</span>
+                </button>
+
+                <p className="text-[11px] text-teal-700/80">
+                  The most specific match wins: a rule for the attendee&apos;s membership type and
+                  batch first, then any rule covering their batch. Unmatched batches use the
+                  default schedule.
+                </p>
+
+                {feeError && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{feeError}</span>
+                  </div>
+                )}
 
                 <div className="flex justify-end gap-2 pt-3 border-t border-teal-100">
                   <button

@@ -150,5 +150,7 @@ export interface CsvImportSummary {
   totalRows: number;
   importedCount: number;
   skippedCount: number;
+  /** Pre-registrations matched to an association member during import */
+  linkedMembersCount?: number;
   errors: string[];
 }

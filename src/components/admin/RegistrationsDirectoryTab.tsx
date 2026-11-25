@@ -11,6 +11,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { EventRegistration } from "@/types/database.types";
+import { toCsv } from "@/server/utils/csvExport";
 import {
   BATCH_YEARS,
   PAYMENT_MODES,
@@ -53,65 +54,45 @@ export function RegistrationsDirectoryTab({
   const handleExportCSV = () => {
     if (registrations.length === 0) return;
 
-    const headers = [
-      "Registration ID",
-      "Event ID",
-      "Member Login ID",
-      "Full Name",
-      "Email",
-      "Mobile",
-      "Course",
-      "Stream",
-      "Graduating Year",
-      "Membership Used",
-      "Source",
-      "Recognized Member",
-      "Food Preference",
-      "Accompanying Alumni",
-      "Accompanying Family",
-      "Registration Fee",
-      "Voluntary Contribution",
-      "Total Amount",
-      "Payment Mode",
-      "UTR Last 4",
-      "Payment Confirmed",
-      "Checked In At",
+    const cols: [string, (r: EventRegistration) => unknown][] = [
+      ["Pass No", (r) => `IRTTAA-${String(r.registration_id).padStart(4, "0")}`],
+      ["Event ID", (r) => r.event_id],
+      ["Member Login ID", (r) => r.member_login_id],
+      ["Full Name", (r) => r.full_name],
+      ["Email", (r) => r.email],
+      ["Mobile", (r) => r.mobile],
+      ["Course", (r) => r.course],
+      ["Stream", (r) => r.stream],
+      ["Graduating Year", (r) => r.graduating_year],
+      ["Membership Used", (r) => r.membership_type_used],
+      ["Source", (r) => r.registration_source],
+      ["Recognized Member", (r) => (r.recognized_member ? "YES" : "NO")],
+      ["Food Preference", (r) => r.food_preference],
+      ["Accompanying Alumni", (r) => r.accompanying_alumni_count],
+      ["Accompanying Family", (r) => r.accompanying_family_count],
+      ["Registration Fee", (r) => r.registration_fee],
+      ["Voluntary Contribution", (r) => r.voluntary_contribution],
+      ["Total Amount", (r) => r.total_amount],
+      ["Payment Mode", (r) => r.payment_mode || "NONE"],
+      ["UTR Last 4", (r) => r.utr_last4],
+      ["Payment Confirmed", (r) => (r.payment_confirmed ? "YES" : "NO")],
+      ["Checked In At", (r) => r.checked_in_at],
     ];
-
-    const rows = registrations.map((r) => [
-      r.registration_id,
-      r.event_id,
-      `"${r.member_login_id || ""}"`,
-      `"${r.full_name || ""}"`,
-      `"${r.email || ""}"`,
-      `"${r.mobile || ""}"`,
-      `"${r.course || ""}"`,
-      `"${r.stream || ""}"`,
-      r.graduating_year || "",
-      r.membership_type_used,
-      r.registration_source,
-      r.recognized_member ? "YES" : "NO",
-      `"${r.food_preference || ""}"`,
-      r.accompanying_alumni_count,
-      r.accompanying_family_count,
-      r.registration_fee,
-      r.voluntary_contribution,
-      r.total_amount,
-      r.payment_mode || "NONE",
-      `"${r.utr_last4 || ""}"`,
-      r.payment_confirmed ? "YES" : "NO",
-      r.checked_in_at,
-    ]);
-
-    const csv =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const csv = toCsv(
+      cols.map(([header, value]) => ({ header, value: value as (row: never) => unknown })),
+      registrations
+    );
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
-    link.setAttribute("href", encodeURI(csv));
-    link.setAttribute("download", `IRTTAA_Registrations_${Date.now()}.csv`);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `IRTTAA_Registrations_${new Date().toISOString().slice(0, 10)}.csv`
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {

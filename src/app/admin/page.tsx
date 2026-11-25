@@ -72,15 +72,19 @@ export default function AdminDashboardPage() {
   const [filterSource, setFilterSource] = useState("All");
   const [filterPaymentMode, setFilterPaymentMode] = useState("All");
 
-  // Auth Check
+  // Auth Check (the middleware already blocks unauthenticated access;
+  // this only resolves the signed-in organizer's email for display)
   useEffect(() => {
-    const isLoggedIn = sessionStorage.getItem("irttaa_admin_logged_in");
-    if (!isLoggedIn) {
-      router.push("/admin/login");
-    } else {
-      const email = sessionStorage.getItem("irttaa_admin_email");
-      if (email) setAdminEmail(email);
-    }
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (!json?.success || json.data.role !== "admin") {
+          router.replace("/admin/login?next=/admin");
+        } else if (json.data.email) {
+          setAdminEmail(json.data.email);
+        }
+      })
+      .catch(() => undefined);
   }, [router]);
 
   const loadEvents = useCallback(async () => {
@@ -169,10 +173,9 @@ export default function AdminDashboardPage() {
     if (activeTab === "registrations") loadRegistrations();
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("irttaa_admin_logged_in");
-    sessionStorage.removeItem("irttaa_admin_email");
-    router.push("/admin/login");
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+    router.replace("/admin/login");
   };
 
   const activeEventObj = events.find((e) => e.is_active) || events[0];

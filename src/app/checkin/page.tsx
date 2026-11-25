@@ -11,6 +11,7 @@ import {
   Loader2,
   ArrowRight,
   Clock,
+  LogOut,
 } from "lucide-react";
 import {
   Event,
@@ -111,13 +112,28 @@ export default function DeskCheckInDirectoryPage() {
             </div>
           </div>
 
-          <Link
-            href="/register"
-            className="px-4 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold shadow-md flex items-center gap-2"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>New Venue Check-In</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/register"
+              className="px-4 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold shadow-md flex items-center gap-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>New Venue Check-In</span>
+            </Link>
+            <button
+              type="button"
+              onClick={async () => {
+                await fetch("/api/auth/logout", { method: "POST" }).catch(
+                  () => undefined
+                );
+                window.location.href = "/admin/login";
+              }}
+              className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-teal-50 border border-teal-200 text-xs font-bold text-teal-900 shadow-sm flex items-center gap-1.5 cursor-pointer"
+            >
+              <LogOut className="w-4 h-4 text-teal-700" />
+              <span>Sign Out</span>
+            </button>
+          </div>
         </div>
 
         {/* Search Box */}

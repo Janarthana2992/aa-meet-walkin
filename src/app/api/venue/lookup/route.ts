@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clientIp, rateLimit } from "@/server/auth/rateLimit";
 import { registrationController } from "@/server/controllers/registration.controller";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(`lookup:${clientIp(req.headers)}`, 40, 60 * 1000);
+  if (!limited.allowed) {
+    return NextResponse.json(
+      { success: false, error: "Too many requests. Please wait a minute and try again." },
+      { status: 429 }
+    );
+  }
+
   try {
     const body = await req.json();
     const result = await registrationController.handleVenueLookup(body);

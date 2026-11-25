@@ -6,21 +6,30 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import {
-  Shield,
   Lock,
   Mail,
   Loader2,
   AlertCircle,
   ArrowRight,
   ArrowLeft,
-  Sparkles,
+  KeyRound,
 } from "lucide-react";
-import { supabase } from "@/server/config/supabase";
+type LoginMode = "admin" | "desk";
+
+function safeNextPath(fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  const next = new URLSearchParams(window.location.search).get("next");
+  // Only allow same-site relative paths
+  if (next && next.startsWith("/") && !next.startsWith("//")) return next;
+  return fallback;
+}
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const [mode, setMode] = useState<LoginMode>("admin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,35 +39,24 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      // 1. Attempt Supabase Auth login
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password.trim(),
+      const body =
+        mode === "admin"
+          ? { mode, email: email.trim(), password }
+          : { mode, pin: pin.trim() };
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
-
-      if (authError) {
-        // If Supabase Auth account is not yet configured or admin credentials match default admin
-        if (
-          (email.trim() === "admin@irttaa.org" || email.trim() === "admin") &&
-          password.trim() === "admin123"
-        ) {
-          // Set local session flag for organizer access
-          sessionStorage.setItem("irttaa_admin_logged_in", "true");
-          sessionStorage.setItem("irttaa_admin_email", email.trim());
-          router.push("/admin");
-          return;
-        }
-        throw new Error(authError.message);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Sign in failed. Please try again.");
       }
-
-      if (data.session) {
-        sessionStorage.setItem("irttaa_admin_logged_in", "true");
-        sessionStorage.setItem(
-          "irttaa_admin_email",
-          data.user?.email || email.trim()
-        );
-        router.push("/admin");
-      }
+      const fallback = mode === "admin" ? "/admin" : "/checkin";
+      let next = safeNextPath(fallback);
+      if (mode === "desk" && !next.startsWith("/checkin")) next = "/checkin";
+      router.replace(next);
+      router.refresh();
     } catch (err: unknown) {
       setError(
         err instanceof Error
@@ -68,12 +66,6 @@ export default function AdminLoginPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleOrganizerQuickLogin = () => {
-    sessionStorage.setItem("irttaa_admin_logged_in", "true");
-    sessionStorage.setItem("irttaa_admin_email", "admin@irttaa.org");
-    router.push("/admin");
   };
 
   return (
@@ -108,7 +100,7 @@ export default function AdminLoginPage() {
               />
             </div>
             <h2 className="text-2xl font-black text-teal-950 tracking-tight">
-              Admin & Committee Login
+              Organizer & Desk Login
             </h2>
             <p className="text-xs text-teal-700/80 font-medium mt-1">
               Event configuration, analytics, and attendee data
@@ -122,44 +114,106 @@ export default function AdminLoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div>
-              <label className="block text-xs font-bold text-teal-900 uppercase tracking-wider mb-2">
-                Admin Email
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-teal-600">
-                  <Mail className="w-4 h-4" />
-                </div>
-                <input
-                  type="text"
-                  required
-                  placeholder="admin@irttaa.org"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full h-12 pl-10 pr-4 rounded-xl border border-teal-200 text-teal-950 text-sm font-medium focus:ring-2 focus:ring-teal-600 outline-none transition-all shadow-sm"
-                />
-              </div>
-            </div>
+          <div className="grid grid-cols-2 gap-1 p-1 mb-6 rounded-xl bg-teal-50 border border-teal-100">
+            {(["admin", "desk"] as LoginMode[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => {
+                  setMode(m);
+                  setError(null);
+                }}
+                className={`py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                  mode === m
+                    ? "bg-white text-teal-950 shadow-sm"
+                    : "text-teal-700 hover:text-teal-900"
+                }`}
+              >
+                {m === "admin" ? "Organizer" : "Desk Volunteer"}
+              </button>
+            ))}
+          </div>
 
-            <div>
-              <label className="block text-xs font-bold text-teal-900 uppercase tracking-wider mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-teal-600">
-                  <Lock className="w-4 h-4" />
+          <form onSubmit={handleLogin} className="space-y-5">
+            {mode === "admin" ? (
+              <>
+                <div>
+                  <label
+                    htmlFor="login-email"
+                    className="block text-xs font-bold text-teal-900 uppercase tracking-wider mb-2"
+                  >
+                    Email
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-teal-600">
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <input
+                      id="login-email"
+                      type="email"
+                      autoComplete="username"
+                      required
+                      placeholder="organizer@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full h-12 pl-10 pr-4 rounded-xl border border-teal-200 text-teal-950 text-sm font-medium focus:ring-2 focus:ring-teal-600 outline-none transition-all shadow-sm"
+                    />
+                  </div>
                 </div>
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-12 pl-10 pr-4 rounded-xl border border-teal-200 text-teal-950 text-sm font-medium focus:ring-2 focus:ring-teal-600 outline-none transition-all shadow-sm"
-                />
+
+                <div>
+                  <label
+                    htmlFor="login-password"
+                    className="block text-xs font-bold text-teal-900 uppercase tracking-wider mb-2"
+                  >
+                    Password
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-teal-600">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <input
+                      id="login-password"
+                      type="password"
+                      autoComplete="current-password"
+                      required
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full h-12 pl-10 pr-4 rounded-xl border border-teal-200 text-teal-950 text-sm font-medium focus:ring-2 focus:ring-teal-600 outline-none transition-all shadow-sm"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div>
+                <label
+                  htmlFor="login-pin"
+                  className="block text-xs font-bold text-teal-900 uppercase tracking-wider mb-2"
+                >
+                  Desk PIN
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-teal-600">
+                    <KeyRound className="w-4 h-4" />
+                  </div>
+                  <input
+                    id="login-pin"
+                    type="password"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    required
+                    placeholder="PIN shared by the organizers"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    className="w-full h-12 pl-10 pr-4 rounded-xl border border-teal-200 text-teal-950 text-sm font-medium focus:ring-2 focus:ring-teal-600 outline-none transition-all shadow-sm"
+                  />
+                </div>
+                <p className="mt-2 text-[11px] text-teal-700/80">
+                  Gives access to the check-in desk directory only.
+                </p>
               </div>
-            </div>
+            )}
 
             <button
               type="submit"
@@ -173,27 +227,12 @@ export default function AdminLoginPage() {
                 </>
               ) : (
                 <>
-                  <span>Sign In as Admin</span>
+                  <span>{mode === "admin" ? "Sign In" : "Open Check-In Desk"}</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
-
-          {/* Quick Organizer Access Banner */}
-          <div className="mt-8 pt-6 border-t border-teal-100 text-center">
-            <span className="text-xs text-teal-700/70 block mb-3 font-medium">
-              Event Volunteer or Committee Member?
-            </span>
-            <button
-              type="button"
-              onClick={handleOrganizerQuickLogin}
-              className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-teal-900 bg-teal-50 hover:bg-teal-100/80 border border-teal-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-teal-700" />
-              <span>Organizer Quick Access (Demo)</span>
-            </button>
-          </div>
         </motion.div>
       </div>
     </div>
