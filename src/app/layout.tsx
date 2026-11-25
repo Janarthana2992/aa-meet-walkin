@@ -1,5 +1,9 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
+
+// Downloaded at build time and served from this app (no runtime call to Google)
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
   title: "IRTTAA Events",
@@ -22,10 +26,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased bg-stone-50 text-stone-900">
-        {children}
-      </body>
+    <html lang="en" className={inter.variable}>
+      <body className="font-sans antialiased bg-canvas text-ink">{children}</body>
     </html>
   );
 }

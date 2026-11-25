@@ -79,7 +79,7 @@ export function PeopleList({
   return (
     <div className="space-y-3">
       <div className="relative">
-        <Search className="w-4 h-4 text-stone-400 absolute left-3 top-3.5 pointer-events-none" />
+        <Search className="w-4 h-4 text-muted/70 absolute left-3 top-3.5 pointer-events-none" />
         <Input
           type="search"
           aria-label="Search people"
@@ -108,14 +108,14 @@ export function PeopleList({
         checkedIn.length === 0 ? (
           <Empty>{debounced ? "No matches." : "Nobody has checked in yet."}</Empty>
         ) : (
-          <ul className="bg-white rounded-lg border border-stone-200 divide-y divide-stone-200 overflow-hidden">
+          <ul className="bg-white rounded-lg border border-line divide-y divide-line overflow-hidden">
             {checkedIn.map((r) => {
               const guests = r.accompanying_family_count + r.accompanying_alumni_count;
               const body = (
                 <>
                   <div className="min-w-0 flex-1">
-                    <div className="font-medium text-stone-900 truncate">{r.full_name}</div>
-                    <div className="text-sm text-stone-500 truncate">
+                    <div className="font-medium text-ink truncate">{r.full_name}</div>
+                    <div className="text-sm text-muted truncate">
                       {[r.graduating_year, r.stream, passNumber(r.registration_id)].filter(Boolean).join(" · ")}
                     </div>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -130,16 +130,16 @@ export function PeopleList({
                       {!r.payment_confirmed && <Badge tone="red">Payment not confirmed</Badge>}
                     </div>
                   </div>
-                  <div className="text-xs text-stone-500 shrink-0 text-right">
+                  <div className="text-xs text-muted shrink-0 text-right">
                     {formatTime(r.checked_in_at)}
-                    {onSelect && <ChevronRight className="w-4 h-4 ml-auto mt-1 text-stone-400" />}
+                    {onSelect && <ChevronRight className="w-4 h-4 ml-auto mt-1 text-muted/70" />}
                   </div>
                 </>
               );
               return (
                 <li key={r.registration_id}>
                   {onSelect ? (
-                    <button type="button" onClick={() => onSelect(r)} className={`${rowClass} hover:bg-stone-50`}>
+                    <button type="button" onClick={() => onSelect(r)} className={`${rowClass} hover:bg-canvas`}>
                       {body}
                     </button>
                   ) : (
@@ -153,12 +153,12 @@ export function PeopleList({
       ) : waiting.length === 0 ? (
         <Empty>{debounced ? "No matches." : "Everyone on the attendee list has arrived."}</Empty>
       ) : (
-        <ul className="bg-white rounded-lg border border-stone-200 divide-y divide-stone-200 overflow-hidden">
+        <ul className="bg-white rounded-lg border border-line divide-y divide-line overflow-hidden">
           {waiting.map((p) => (
             <li key={p.pre_registration_id} className="flex items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
-                <div className="font-medium text-stone-900 truncate">{p.full_name}</div>
-                <div className="text-sm text-stone-500 truncate">
+                <div className="font-medium text-ink truncate">{p.full_name}</div>
+                <div className="text-sm text-muted truncate">
                   {[p.graduating_year, p.stream, p.mobile].filter(Boolean).join(" · ")}
                   {p.response_status === "MAY_BE" ? " · maybe" : ""}
                 </div>
@@ -166,7 +166,7 @@ export function PeopleList({
               {allowCheckIn && (
                 <Link
                   href={`/register?q=${encodeURIComponent(p.email)}`}
-                  className="shrink-0 h-9 px-3 rounded-md border border-stone-300 text-sm font-medium text-stone-800 hover:bg-stone-50 flex items-center"
+                  className="shrink-0 h-9 px-3 rounded-lg border border-line text-sm font-medium text-ink hover:bg-canvas flex items-center"
                 >
                   Check in
                 </Link>

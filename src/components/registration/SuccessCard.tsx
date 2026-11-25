@@ -2,67 +2,113 @@
 
 import React from "react";
 import Image from "next/image";
-import { EventRegistration } from "@/types/database.types";
-import { Button, inr, passNumber } from "@/components/ui";
+import { CheckCircle2, Printer, RotateCcw } from "lucide-react";
+import { Event, EventRegistration } from "@/types/database.types";
+import { Badge, Button, formatDate, inr, passNumber } from "@/components/ui";
 
 interface SuccessCardProps {
   registration: EventRegistration;
-  eventName?: string;
+  event: Event;
   onReset: () => void;
 }
 
-export function SuccessCard({ registration: r, eventName, onReset }: SuccessCardProps) {
+/** Ticket-style event pass shown after check-in (and printable). */
+export function SuccessCard({ registration: r, event, onReset }: SuccessCardProps) {
   const guests = r.accompanying_family_count + r.accompanying_alumni_count;
 
-  const rows: [string, string][] = [
-    ["Name", r.full_name],
-    ["Batch", [r.graduating_year, r.stream].filter(Boolean).join(", ") || "—"],
+  const details: [string, string][] = [
+    ["Batch", [r.graduating_year, r.course, r.stream].filter(Boolean).join(" · ") || "—"],
     ["Food", r.food_preference || "—"],
-    ["Guests", guests > 0 ? String(guests) : "None"],
-    [
-      "Payment",
-      r.payment_required
-        ? `${inr(r.total_amount)} by ${r.payment_mode === "ONLINE" ? `UPI${r.utr_last4 ? ` (ref. ending ${r.utr_last4})` : ""}` : "cash"}`
-        : "No entry fee",
-    ],
+    ["Guests", guests > 0 ? `${guests} (${r.accompanying_family_count} family, ${r.accompanying_alumni_count} alumni)` : "None"],
+    ["Checked in", new Date(r.checked_in_at.endsWith("Z") ? r.checked_in_at : `${r.checked_in_at}Z`).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })],
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="no-print">
-        <h1 className="text-xl font-semibold text-stone-900">Checked in</h1>
-        <p className="text-stone-600">Show this pass at the registration desk.</p>
+    <div className="space-y-5">
+      <div className="flex items-center gap-3 no-print">
+        <CheckCircle2 className="w-8 h-8 text-green-600 shrink-0" />
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-ink">You&apos;re checked in</h1>
+          <p className="text-sm text-muted">Show this pass at the registration desk.</p>
+        </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-stone-300">
-        <div className="px-4 py-3 border-b border-stone-200 flex items-center gap-3">
-          <Image src="/logo.png" alt="" width={32} height={32} />
+      <article className="relative bg-white rounded-2xl border border-line shadow-[0_4px_16px_rgba(16,24,40,0.08)] overflow-hidden print:shadow-none">
+        <div className="brand-stripe" />
+        <header className="bg-brand-700 text-white px-5 py-4 flex items-center gap-3">
+          <div className="w-11 h-11 shrink-0 rounded-full bg-white flex items-center justify-center">
+            <Image src="/logo.png" alt="" width={38} height={38} />
+          </div>
           <div className="min-w-0">
-            <div className="font-medium text-stone-900 truncate">{eventName || "IRTTAA event"}</div>
-            <div className="text-xs text-stone-500">Event pass</div>
+            <div className="font-semibold truncate">{event.event_name}</div>
+            <div className="text-sm text-brand-100 truncate">
+              {formatDate(event.event_date)}
+              {event.venue ? ` · ${event.venue}` : ""}
+            </div>
           </div>
+        </header>
+
+        <div className="px-5 pt-5 pb-4">
+          <div className="text-xs font-medium uppercase tracking-wider text-muted">Attendee</div>
+          <div className="mt-0.5 text-xl font-semibold text-ink">{r.full_name}</div>
         </div>
-        <div className="px-4 py-4">
-          <div className="text-xs text-stone-500">Pass number</div>
-          <div className="text-2xl font-mono font-semibold text-stone-900 tracking-wide">
-            {passNumber(r.registration_id)}
+
+        {/* Perforation */}
+        <div className="relative h-6" aria-hidden="true">
+          <div className="absolute -left-3 top-0 w-6 h-6 rounded-full bg-canvas border border-line" />
+          <div className="absolute -right-3 top-0 w-6 h-6 rounded-full bg-canvas border border-line" />
+          <div className="absolute left-5 right-5 top-1/2 border-t-2 border-dashed border-line" />
+        </div>
+
+        <div className="px-5 pt-3 pb-5 space-y-4">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <div className="text-xs font-medium uppercase tracking-wider text-muted">Pass number</div>
+              <div className="mt-0.5 text-2xl font-semibold font-mono tracking-wide text-brand-800">
+                {passNumber(r.registration_id)}
+              </div>
+            </div>
+            {r.payment_required ? (
+              <Badge tone="green" dot>
+                Paid {inr(r.total_amount)}
+              </Badge>
+            ) : (
+              <Badge tone="blue" dot>
+                No fee
+              </Badge>
+            )}
           </div>
-          <dl className="mt-4 divide-y divide-stone-100 text-sm">
-            {rows.map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-4 py-2">
-                <dt className="text-stone-500">{k}</dt>
-                <dd className="text-stone-900 text-right">{v}</dd>
+
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+            {details.map(([k, v]) => (
+              <div key={k} className={k === "Guests" ? "col-span-2" : ""}>
+                <dt className="text-muted">{k}</dt>
+                <dd className="font-medium text-ink">{v}</dd>
               </div>
             ))}
           </dl>
+
+          {r.payment_required && (
+            <div className="text-sm text-muted pt-3 border-t border-line">
+              {r.payment_mode === "ONLINE"
+                ? `Paid by UPI${r.utr_last4 ? `, reference ending ${r.utr_last4}` : ""}.`
+                : "Paid in cash."}
+              {Number(r.voluntary_contribution) > 0 &&
+                ` Includes a contribution of ${inr(r.voluntary_contribution)}. Thank you.`}
+            </div>
+          )}
         </div>
-      </div>
+      </article>
 
       <div className="grid grid-cols-2 gap-3 no-print">
         <Button variant="secondary" onClick={() => window.print()}>
-          Print pass
+          <Printer className="w-4 h-4" />
+          Print
         </Button>
-        <Button onClick={onReset}>Next person</Button>
+        <Button onClick={onReset}>
+          <RotateCcw className="w-4 h-4" />
+          Next person
+        </Button>
       </div>
     </div>
   );

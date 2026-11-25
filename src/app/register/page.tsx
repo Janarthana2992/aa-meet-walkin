@@ -2,7 +2,7 @@
 
 import React, { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, Search, UserPlus } from "lucide-react";
+import { ArrowRight, CalendarDays, Search, UserPlus } from "lucide-react";
 import {
   BATCH_YEARS,
   COURSE_TYPES,
@@ -22,6 +22,9 @@ import {
   AppHeader,
   Button,
   Card,
+  Empty,
+  Steps,
+  formatDate,
   Field,
   Input,
   LinkButton,
@@ -240,11 +243,17 @@ function RegisterFlow() {
     }
   };
 
+  const STEP_LABELS = ["Find you", "Details", "Pass"];
+  const stepIndex = step === "find" ? 0 : step === "details" ? 1 : 2;
+
   const header = (
-    <AppHeader
-      title={event?.event_name || "Check in"}
-      subtitle={event?.venue}
-    />
+    <AppHeader title={event?.event_name || "Check in"} subtitle={event ? formatDate(event.event_date) : undefined} back={{ href: "/", label: "Back to event" }} />
+  );
+
+  const progress = (
+    <div className="pt-1 pb-1">
+      <Steps steps={STEP_LABELS} current={stepIndex} />
+    </div>
   );
 
   if (loadingEvent) {
@@ -262,13 +271,13 @@ function RegisterFlow() {
         {header}
         <Page>
           <Card>
-            <h1 className="text-xl font-semibold text-stone-900">No event open for check-in</h1>
-            <p className="mt-1 text-stone-600">
+            <Empty
+              icon={CalendarDays}
+              title="No event open for check-in"
+              action={<LinkButton href="/" variant="secondary">Back to home</LinkButton>}
+            >
               Check-in opens on the day of the event.
-            </p>
-            <LinkButton href="/" variant="secondary" className="mt-4">
-              Back to home
-            </LinkButton>
+            </Empty>
           </Card>
         </Page>
       </>
@@ -280,7 +289,8 @@ function RegisterFlow() {
       <>
         {header}
         <Page>
-          <SuccessCard registration={registration} eventName={event.event_name} onReset={startOver} />
+          {progress}
+          <SuccessCard registration={registration} event={event} onReset={startOver} />
         </Page>
       </>
     );
@@ -291,57 +301,68 @@ function RegisterFlow() {
       <>
         {header}
         <Page>
-          <div className="pt-2">
-            <h1 className="text-xl font-semibold text-stone-900">Check in</h1>
-            <p className="mt-1 text-stone-600">
-              Enter the email or mobile number you used to register. Your details will be filled in for you.
+          {progress}
+
+          <Card>
+            <h1 className="text-xl font-semibold tracking-tight text-ink">Find your registration</h1>
+            <p className="mt-1 text-[15px] text-muted">
+              Enter the email or mobile number you registered with. We&apos;ll fill in the rest.
             </p>
-          </div>
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              lookup(query, event.event_id);
-            }}
-            className="space-y-3"
-          >
-            <Field label="Email or mobile number">
-              <Input
-                autoFocus
-                type="text"
-                inputMode="email"
-                autoComplete="email"
-                autoCapitalize="none"
-                autoCorrect="off"
-                placeholder="name@gmail.com or 98765 43210"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </Field>
-            {findError && <Notice tone="error">{findError}</Notice>}
-            <Button type="submit" size="lg" className="w-full" loading={searching} disabled={!query.trim()}>
-              {!searching && <Search className="w-5 h-5" />}
-              Find my details
-            </Button>
-          </form>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                lookup(query, event.event_id);
+              }}
+              className="mt-5 space-y-3"
+            >
+              <Field label="Email or mobile number">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-muted absolute left-3.5 top-4 pointer-events-none" />
+                  <Input
+                    autoFocus
+                    type="text"
+                    inputMode="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    placeholder="name@gmail.com or 98765 43210"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </Field>
+              {findError && <Notice tone="error">{findError}</Notice>}
+              <Button type="submit" size="lg" className="w-full" loading={searching} disabled={!query.trim()}>
+                Continue
+                {!searching && <ArrowRight className="w-4 h-4" />}
+              </Button>
+            </form>
+          </Card>
 
-          <div className="relative py-2 text-center text-sm text-stone-400">
-            <span className="bg-stone-50 px-3 relative z-10">or</span>
-            <span className="absolute inset-x-0 top-1/2 border-t border-stone-200" />
-          </div>
-
-          <Button
-            variant="secondary"
-            className="w-full"
-            onClick={() => {
-              setForm(EMPTY_FORM);
-              setFound("NONE");
-              setStep("details");
-            }}
-          >
-            <UserPlus className="w-5 h-5" />
-            Fill in my details instead
-          </Button>
+          <Card>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 shrink-0 rounded-lg bg-brand-50 flex items-center justify-center">
+                <UserPlus className="w-5 h-5 text-brand-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold text-ink">Didn&apos;t register online?</div>
+                <div className="text-sm text-muted">You can still check in here.</div>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setForm(EMPTY_FORM);
+                  setFound("NONE");
+                  setStep("details");
+                }}
+              >
+                Fill in
+              </Button>
+            </div>
+          </Card>
         </Page>
       </>
     );
@@ -353,51 +374,49 @@ function RegisterFlow() {
       {header}
       <form onSubmit={submit}>
         <Page className="pb-32">
+          {progress}
+
           {found === "PRE_REGISTERED" && (
-            <Notice tone="success">
-              Registration found. Check your details and continue.
-            </Notice>
+            <Notice tone="success">We found your registration. Check the details below.</Notice>
           )}
           {found === "ASSOCIATION_MEMBER" && (
-            <Notice tone="success">You are on the members list. Check your details and continue.</Notice>
+            <Notice tone="success">You&apos;re on the members list. Check the details below.</Notice>
           )}
           {found === "NONE" && query && (
             <Notice tone="info">No registration found for &ldquo;{query}&rdquo;. Fill in your details below.</Notice>
           )}
 
-          <Card title="Your details" action={
-            <button type="button" onClick={startOver} className="text-sm font-medium text-teal-800 h-10 px-2 -mr-2">
-              Start over
-            </button>
-          }>
+          <Card
+            title="Your details"
+            action={
+              <button type="button" onClick={startOver} className="text-sm font-medium text-brand-700 h-9 px-2 -mr-2 -mt-1 rounded-md hover:bg-brand-50">
+                Not you?
+              </button>
+            }
+          >
             <div className="space-y-4">
               <Field label="Full name">
                 <Input required autoComplete="name" value={form.fullName} onChange={(e) => set("fullName", e.target.value)} />
               </Field>
-              <Field label="Mobile number">
-                <Input required type="tel" inputMode="tel" autoComplete="tel" value={form.mobile} onChange={(e) => set("mobile", e.target.value)} />
-              </Field>
-              <Field label="Email">
-                <Input required type="email" autoComplete="email" autoCapitalize="none" value={form.email} onChange={(e) => set("email", e.target.value)} />
-              </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Mobile number">
+                  <Input required type="tel" inputMode="tel" autoComplete="tel" value={form.mobile} onChange={(e) => set("mobile", e.target.value)} />
+                </Field>
+                <Field label="Email">
+                  <Input required type="email" autoComplete="email" autoCapitalize="none" value={form.email} onChange={(e) => set("email", e.target.value)} />
+                </Field>
+              </div>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Batch (year of graduation)" className="col-span-2">
+                <Field label="Batch">
                   <Select value={form.graduatingYear} onChange={(e) => set("graduatingYear", Number(e.target.value))}>
                     {BATCH_YEARS.map((y) => (
                       <option key={y} value={y}>{y}</option>
                     ))}
                   </Select>
                 </Field>
-                <Field label="Course">
-                  <Select value={form.course} onChange={(e) => set("course", e.target.value)}>
-                    {COURSE_TYPES.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </Select>
-                </Field>
                 <Field label="Branch">
                   <Select required value={form.stream} onChange={(e) => set("stream", e.target.value)}>
-                    <option value="" disabled>Choose</option>
+                    <option value="" disabled>Select</option>
                     {STREAM_TYPES.map((s) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
@@ -407,22 +426,33 @@ function RegisterFlow() {
                   </Select>
                 </Field>
               </div>
+              <Field group label="Course">
+                <Segmented
+                  label="Course"
+                  value={form.course as (typeof COURSE_TYPES)[number]}
+                  onChange={(v) => set("course", v)}
+                  options={COURSE_TYPES.map((c) => ({ value: c, label: c }))}
+                />
+              </Field>
             </div>
           </Card>
 
-          <Card title="Food and guests">
+          <Card title="Food and guests" description="Helps us plan food and seating.">
             <div className="space-y-4">
-              <Segmented
-                value={form.foodPreference as (typeof FOOD_PREFERENCES)[number]}
-                onChange={(v) => set("foodPreference", v)}
-                options={FOOD_PREFERENCES.map((f) => ({ value: f, label: FOOD_LABELS[f] || f }))}
-              />
+              <Field group label="Food preference">
+                <Segmented
+                  label="Food preference"
+                  value={form.foodPreference as (typeof FOOD_PREFERENCES)[number]}
+                  onChange={(v) => set("foodPreference", v)}
+                  options={FOOD_PREFERENCES.map((f) => ({ value: f, label: FOOD_LABELS[f] || f }))}
+                />
+              </Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field group label="Family members">
-                  <Stepper label="family" value={form.accompanyingFamilyCount} onChange={(v) => set("accompanyingFamilyCount", v)} />
+                  <Stepper label="family members" value={form.accompanyingFamilyCount} onChange={(v) => set("accompanyingFamilyCount", v)} />
                 </Field>
                 <Field group label="Other alumni">
-                  <Stepper label="alumni" value={form.accompanyingAlumniCount} onChange={(v) => set("accompanyingAlumniCount", v)} />
+                  <Stepper label="other alumni" value={form.accompanyingAlumniCount} onChange={(v) => set("accompanyingAlumniCount", v)} />
                 </Field>
               </div>
             </div>
@@ -442,18 +472,15 @@ function RegisterFlow() {
           {submitError && <Notice tone="error">{submitError}</Notice>}
         </Page>
 
-        {/* Sticky action bar: total + submit always in reach of the thumb */}
-        <div className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-stone-200">
-          <div className="max-w-2xl mx-auto px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex items-center gap-3">
+        {/* Total and submit stay within thumb reach */}
+        <div className="fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur border-t border-line shadow-[0_-4px_12px_rgba(16,24,40,0.06)]">
+          <div className="max-w-2xl mx-auto px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex items-center gap-4">
             <div className="shrink-0">
-              <div className="text-xs text-stone-500">Total</div>
-              <div className="text-lg font-semibold text-stone-900 tabular-nums">
-                {total > 0 ? inr(total) : "₹0"}
-              </div>
+              <div className="text-xs font-medium text-muted">Total</div>
+              <div className="text-xl font-semibold tracking-tight text-ink tabular-nums">{inr(total)}</div>
             </div>
             <Button type="submit" size="lg" className="flex-1" loading={submitting}>
-              Check in
-              {!submitting && <ArrowRight className="w-5 h-5" />}
+              {total > 0 ? "Confirm and check in" : "Check in"}
             </Button>
           </div>
         </div>

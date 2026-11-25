@@ -1,10 +1,16 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { ArrowRight, CalendarDays, Clock, MapPin, Search, Ticket, UserCheck } from "lucide-react";
 import { Event } from "@/types/database.types";
-import { LinkButton, Spinner, formatDate } from "@/components/ui";
+import { BrandMark, DateTile, LinkButton, Spinner, formatLongDate } from "@/components/ui";
+
+const STEPS = [
+  { icon: Search, title: "Find your registration", text: "Enter the email or mobile number you registered with." },
+  { icon: UserCheck, title: "Confirm your details", text: "Check your batch, food choice and guests." },
+  { icon: Ticket, title: "Pay and get your pass", text: "Pay by UPI or cash and show the pass at the desk." },
+];
 
 export default function HomePage() {
   const [event, setEvent] = useState<Event | null>(null);
@@ -18,48 +24,119 @@ export default function HomePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  return (
-    <main className="min-h-dvh flex flex-col max-w-md mx-auto px-5 py-6">
-      <div className="flex items-center gap-3">
-        <Image src="/logo.png" alt="" width={36} height={36} priority />
-        <div className="text-sm leading-tight">
-          <div className="font-semibold text-stone-900">IRTT Alumni Association</div>
-          <div className="text-stone-500">Institute of Road and Transport Technology</div>
-        </div>
-      </div>
+  const mapsUrl = event?.venue
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.venue)}`
+    : null;
 
-      <section className="flex-1 mt-10">
+  return (
+    <div className="min-h-dvh flex flex-col">
+      <div className="brand-stripe" />
+      <header className="bg-white border-b border-line">
+        <div className="max-w-2xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
+          <BrandMark />
+          <Link href="/admin/login" className="shrink-0 text-sm font-medium text-muted hover:text-ink">
+            Staff sign in
+          </Link>
+        </div>
+      </header>
+
+      <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-6 sm:py-10 space-y-6">
         {loading ? (
           <Spinner />
         ) : event ? (
           <>
-            <h1 className="text-2xl font-semibold text-stone-900 leading-snug">{event.event_name}</h1>
-            <dl className="mt-4 space-y-1 text-stone-700">
-              <div>{formatDate(event.event_date)}{event.event_time ? `, ${event.event_time}` : ""}</div>
-              {event.venue && <div>{event.venue}</div>}
-            </dl>
-            {event.description && <p className="mt-4 text-stone-600">{event.description}</p>}
+            <section className="bg-white rounded-2xl border border-line shadow-[0_1px_3px_rgba(16,24,40,0.06)] overflow-hidden">
+              <div className="p-5 sm:p-7">
+                <div className="flex items-start gap-4">
+                  <DateTile date={event.event_date} size="lg" />
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-brand-700">
+                      {event.chapter_name
+                        ? /chapter/i.test(event.chapter_name)
+                          ? event.chapter_name
+                          : `${event.chapter_name} chapter`
+                        : "Alumni meet"}
+                    </div>
+                    <h1 className="mt-0.5 text-2xl sm:text-3xl font-semibold tracking-tight text-ink leading-tight">
+                      {event.event_name}
+                    </h1>
+                  </div>
+                </div>
 
-            <LinkButton href="/register" size="lg" className="w-full mt-8">
-              Check in
-            </LinkButton>
-            <p className="mt-2 text-sm text-stone-500">
-              You will need the email or mobile number you registered with.
-            </p>
+                {event.description && <p className="mt-4 text-[15px] text-muted leading-relaxed">{event.description}</p>}
+
+                <ul className="mt-5 space-y-3 text-[15px] text-ink">
+                  <li className="flex items-center gap-3">
+                    <CalendarDays className="w-5 h-5 text-muted shrink-0" />
+                    {formatLongDate(event.event_date)}
+                  </li>
+                  {event.event_time && (
+                    <li className="flex items-center gap-3">
+                      <Clock className="w-5 h-5 text-muted shrink-0" />
+                      {event.event_time}
+                    </li>
+                  )}
+                  {event.venue && (
+                    <li className="flex items-start gap-3">
+                      <MapPin className="w-5 h-5 text-muted shrink-0 mt-0.5" />
+                      <span>
+                        {event.venue}
+                        {mapsUrl && (
+                          <a
+                            href={mapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block text-sm font-medium text-brand-700 hover:underline mt-0.5"
+                          >
+                            Open in Maps
+                          </a>
+                        )}
+                      </span>
+                    </li>
+                  )}
+                </ul>
+              </div>
+              <div className="px-5 sm:px-7 py-4 bg-canvas/60 border-t border-line">
+                <LinkButton href="/register" size="lg" className="w-full">
+                  Check in
+                  <ArrowRight className="w-4 h-4" />
+                </LinkButton>
+              </div>
+            </section>
+
+            <section>
+              <h2 className="text-sm font-semibold text-ink">How check-in works</h2>
+              <ol className="mt-3 grid gap-3 sm:grid-cols-3">
+                {STEPS.map(({ icon: Icon, title, text }, i) => (
+                  <li key={title} className="flex sm:flex-col gap-3 bg-white rounded-xl border border-line p-4">
+                    <div className="w-9 h-9 shrink-0 rounded-lg bg-brand-50 flex items-center justify-center">
+                      <Icon className="w-4 h-4 text-brand-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-ink">
+                        {i + 1}. {title}
+                      </div>
+                      <div className="mt-0.5 text-sm text-muted">{text}</div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
           </>
         ) : (
-          <>
-            <h1 className="text-2xl font-semibold text-stone-900">No event open for check-in</h1>
-            <p className="mt-2 text-stone-600">Check-in opens on the day of the event.</p>
-          </>
+          <section className="bg-white rounded-2xl border border-line p-8 text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center">
+              <CalendarDays className="w-6 h-6 text-brand-600" />
+            </div>
+            <h1 className="mt-4 text-xl font-semibold text-ink">No event open for check-in</h1>
+            <p className="mt-1 text-muted">Check-in opens on the day of the event.</p>
+          </section>
         )}
-      </section>
+      </main>
 
-      <footer className="pt-10 text-sm">
-        <Link href="/admin/login" className="text-stone-500 underline underline-offset-2 hover:text-stone-800">
-          Staff sign in
-        </Link>
+      <footer className="py-6 text-center text-xs text-muted">
+        Institute of Road and Transport Technology Alumni Association
       </footer>
-    </main>
+    </div>
   );
 }

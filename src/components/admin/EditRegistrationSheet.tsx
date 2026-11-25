@@ -141,7 +141,7 @@ export function EditRegistrationSheet({
         </Field>
       </div>
 
-      <div className="pt-2 border-t border-stone-100 space-y-4">
+      <div className="pt-2 border-t border-line space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <Field label="Entry fee (₹)">
             <Input type="number" inputMode="numeric" min={0} value={draft.registration_fee} onChange={(e) => set("registration_fee", Number(e.target.value) || 0)} />
@@ -179,9 +179,9 @@ export function EditRegistrationSheet({
                 type="checkbox"
                 checked={draft.payment_confirmed}
                 onChange={(e) => set("payment_confirmed", e.target.checked)}
-                className="w-5 h-5 accent-teal-800"
+                className="w-5 h-5 accent-brand-600"
               />
-              <span className="text-stone-800">Payment received</span>
+              <span className="text-ink">Payment received</span>
             </label>
           </>
         )}

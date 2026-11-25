@@ -128,10 +128,10 @@ export function FeeEditor({ eventId }: { eventId: number }) {
     <Card>
       {simple ? (
         <div className="space-y-3">
-          <p className="text-sm text-stone-600">
+          <p className="text-sm text-muted">
             Entry fee by batch year. The same fee applies to members and non-members. Enter 0 for free entry.
           </p>
-          <div className="grid grid-cols-[1fr_1fr_1fr_2.75rem] gap-2 text-sm font-medium text-stone-700">
+          <div className="grid grid-cols-[1fr_1fr_1fr_2.75rem] gap-2 text-sm font-medium text-ink/80">
             <span>First batch</span>
             <span>Last batch</span>
             <span>Fee (₹)</span>
@@ -142,7 +142,7 @@ export function FeeEditor({ eventId }: { eventId: number }) {
               <Input aria-label="First batch" type="number" inputMode="numeric" value={t.min} onChange={(e) => updateTier(idx, { min: Number(e.target.value) })} />
               <Input aria-label="Last batch" type="number" inputMode="numeric" value={t.max} onChange={(e) => updateTier(idx, { max: Number(e.target.value) })} />
               <Input aria-label="Fee" type="number" inputMode="numeric" min={0} value={t.fee} onChange={(e) => updateTier(idx, { fee: Number(e.target.value) || 0 })} />
-              <Button variant="ghost" aria-label="Remove row" className="px-0 text-stone-500" onClick={() => { touch(); setTiers((ts) => ts.filter((_, i) => i !== idx)); }}>
+              <Button variant="ghost" aria-label="Remove row" className="px-0 text-muted" onClick={() => { touch(); setTiers((ts) => ts.filter((_, i) => i !== idx)); }}>
                 <Trash2 className="w-4 h-4" />
               </Button>
             </div>
@@ -175,11 +175,11 @@ export function FeeEditor({ eventId }: { eventId: number }) {
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-sm text-stone-600">
+          <p className="text-sm text-muted">
             A rule for the person&apos;s membership type and batch is used first. If none matches, any rule
             covering their batch is used.
           </p>
-          <ul className="divide-y divide-stone-200 border-y border-stone-200">
+          <ul className="divide-y divide-line border-y border-line">
             {sorted.map(({ r, idx }) => (
               <li key={r.fee_configuration_id} className="py-3 space-y-2">
                 <div className="flex gap-2">
@@ -188,7 +188,7 @@ export function FeeEditor({ eventId }: { eventId: number }) {
                       <option key={t} value={t}>{MEMBERSHIP_DISPLAY_LABELS[t]}</option>
                     ))}
                   </Select>
-                  <Button variant="ghost" aria-label="Remove rule" className="w-11 px-0 text-stone-500" onClick={() => { touch(); setRules((rs) => rs && rs.filter((_, i) => i !== idx)); }}>
+                  <Button variant="ghost" aria-label="Remove rule" className="w-11 px-0 text-muted" onClick={() => { touch(); setRules((rs) => rs && rs.filter((_, i) => i !== idx)); }}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
@@ -203,8 +203,8 @@ export function FeeEditor({ eventId }: { eventId: number }) {
                     <Input type="number" inputMode="numeric" min={0} value={r.registration_fee} onChange={(e) => updateRule(idx, { registration_fee: Number(e.target.value) || 0 })} />
                   </Field>
                 </div>
-                <label className="flex items-center gap-2 text-sm text-stone-700">
-                  <input type="checkbox" checked={r.is_active} onChange={(e) => updateRule(idx, { is_active: e.target.checked })} className="w-4 h-4 accent-teal-800" />
+                <label className="flex items-center gap-2 text-sm text-ink/80">
+                  <input type="checkbox" checked={r.is_active} onChange={(e) => updateRule(idx, { is_active: e.target.checked })} className="w-4 h-4 accent-brand-600" />
                   Rule in use
                 </label>
               </li>
@@ -237,7 +237,7 @@ export function FeeEditor({ eventId }: { eventId: number }) {
         </div>
       )}
 
-      <div className="mt-4 pt-4 border-t border-stone-200 space-y-3">
+      <div className="mt-4 pt-4 border-t border-line space-y-3">
         {error && <Notice tone="error">{error}</Notice>}
         {saved && <Notice tone="success">Fees saved.</Notice>}
         <Button onClick={save} loading={saving} className="w-full sm:w-auto">

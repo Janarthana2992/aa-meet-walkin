@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Download } from "lucide-react";
+import { Download, IndianRupee, UserCheck, UserPlus, Users } from "lucide-react";
 import { CategoryCount, EventAnalyticsMetrics } from "@/types/database.types";
 import { Card, Empty, Notice, Spinner, Stat, api, inr } from "@/components/ui";
 
@@ -19,16 +19,16 @@ function Breakdown({ rows, money }: { rows: CategoryCount[]; money?: boolean }) 
     <table className="w-full text-sm">
       <tbody>
         {rows.map((r) => (
-          <tr key={r.category} className="border-t border-stone-100 first:border-0">
-            <td className="py-2 pr-3 text-stone-800 whitespace-nowrap">{r.category}</td>
+          <tr key={r.category} className="border-t border-line first:border-0">
+            <td className="py-2 pr-3 text-ink whitespace-nowrap">{r.category}</td>
             <td className="py-2 w-full">
-              <div className="h-1.5 rounded-full bg-stone-100">
-                <div className="h-full rounded-full bg-teal-700" style={{ width: `${(r.count / max) * 100}%` }} />
+              <div className="h-2 rounded-full bg-brand-50">
+                <div className="h-full rounded-full bg-brand-500" style={{ width: `${(r.count / max) * 100}%` }} />
               </div>
             </td>
-            <td className="py-2 pl-3 text-right tabular-nums text-stone-700 whitespace-nowrap">
+            <td className="py-2 pl-3 text-right tabular-nums text-ink/80 whitespace-nowrap">
               {r.count}
-              {money && r.amount ? <span className="text-stone-500"> · {inr(r.amount)}</span> : null}
+              {money && r.amount ? <span className="text-muted"> · {inr(r.amount)}</span> : null}
             </td>
           </tr>
         ))}
@@ -38,7 +38,7 @@ function Breakdown({ rows, money }: { rows: CategoryCount[]; money?: boolean }) 
 }
 
 const downloadClass =
-  "h-11 px-4 rounded-md border border-stone-300 bg-white text-[15px] font-medium text-stone-800 hover:bg-stone-50 inline-flex items-center justify-center gap-2";
+  "h-11 px-4 rounded-lg border border-line bg-white text-[15px] font-semibold text-ink hover:bg-canvas inline-flex items-center justify-center gap-2 shadow-[0_1px_2px_rgba(16,24,40,0.04)]";
 
 export function EventOverview({ eventId }: { eventId: number }) {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -62,27 +62,28 @@ export function EventOverview({ eventId }: { eventId: number }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Stat
+          icon={UserCheck}
           label="Checked in"
           value={m.total_registrations}
           note={m.pre_registrations_imported ? `${m.pre_registered_checked_in} of ${m.pre_registrations_imported} on the attendee list` : undefined}
         />
-        <Stat label="Total people" value={m.total_headcount} note="Checked in, plus family and guests" />
-        <Stat label="Collected" value={inr(m.total_collected)} />
-        <Stat label="Walk-ins" value={m.on_spot_registrations} note="Not on the attendee list" />
+        <Stat icon={Users} label="Total people" value={m.total_headcount} note="Checked in, plus family and guests" />
+        <Stat icon={IndianRupee} label="Collected" value={inr(m.total_collected)} />
+        <Stat icon={UserPlus} label="Walk-ins" value={m.on_spot_registrations} note="Not on the attendee list" />
       </div>
 
       <Card title="Payments">
         <dl className="grid grid-cols-2 gap-y-2 text-sm">
-          <dt className="text-stone-600">UPI</dt>
+          <dt className="text-muted">UPI</dt>
           <dd className="text-right tabular-nums">{inr(m.online_collected)}</dd>
-          <dt className="text-stone-600">Cash</dt>
+          <dt className="text-muted">Cash</dt>
           <dd className="text-right tabular-nums">{inr(m.cash_collected)}</dd>
-          <dt className="text-stone-600 pt-2 border-t border-stone-100">Entry fees</dt>
-          <dd className="text-right tabular-nums pt-2 border-t border-stone-100">{inr(m.total_registration_fee)}</dd>
-          <dt className="text-stone-600">Contributions</dt>
+          <dt className="text-muted pt-2 border-t border-line">Entry fees</dt>
+          <dd className="text-right tabular-nums pt-2 border-t border-line">{inr(m.total_registration_fee)}</dd>
+          <dt className="text-muted">Contributions</dt>
           <dd className="text-right tabular-nums">{inr(m.total_voluntary_contribution)}</dd>
-          <dt className="font-medium pt-2 border-t border-stone-200">Total</dt>
-          <dd className="text-right font-medium tabular-nums pt-2 border-t border-stone-200">{inr(m.total_collected)}</dd>
+          <dt className="font-medium pt-2 border-t border-line">Total</dt>
+          <dd className="text-right font-medium tabular-nums pt-2 border-t border-line">{inr(m.total_collected)}</dd>
         </dl>
       </Card>
 
@@ -99,7 +100,7 @@ export function EventOverview({ eventId }: { eventId: number }) {
       </div>
 
       <Card title="Download">
-        <p className="text-sm text-stone-600 mb-3">CSV files open in Excel or Google Sheets.</p>
+        <p className="text-sm text-muted mb-3">CSV files open in Excel or Google Sheets.</p>
         <div className="flex flex-col sm:flex-row gap-2">
           <a className={downloadClass} href={`/api/admin/events/${eventId}/export?type=registrations`}>
             <Download className="w-4 h-4" /> Check-ins

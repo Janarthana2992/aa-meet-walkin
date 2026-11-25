@@ -8,16 +8,16 @@ import {
   Badge,
   Button,
   Card,
+  DateTile,
   Notice,
   Page,
   Spinner,
   Tabs,
   api,
-  formatDate,
 } from "@/components/ui";
 import { SignOutButton } from "@/components/admin/SignOutButton";
 import { EventOverview } from "@/components/admin/EventOverview";
-import { EventForm } from "@/components/admin/EventForm";
+import { EVENT_TYPE_LABELS, EventForm } from "@/components/admin/EventForm";
 import { FeeEditor } from "@/components/admin/FeeEditor";
 import { CsvUpload } from "@/components/admin/CsvUpload";
 import { EditRegistrationSheet } from "@/components/admin/EditRegistrationSheet";
@@ -33,7 +33,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "settings", label: "Settings" },
 ];
 
-function PublishBar({
+function EventHero({
   event,
   publishedOther,
   onChange,
@@ -69,27 +69,40 @@ function PublishBar({
   };
 
   return (
-    <div className="bg-white rounded-lg border border-stone-200 px-4 py-3">
-      <div className="flex items-center gap-3">
-        <div className="flex-1 min-w-0">
-          {event.is_active ? <Badge tone="green">Published</Badge> : <Badge tone="amber">Draft</Badge>}
-          <p className="mt-1 text-sm text-stone-600">
+    <div className="bg-white">
+      <div className="max-w-5xl mx-auto px-4 pt-5 pb-4">
+        <div className="flex items-start gap-4">
+          <DateTile date={event.event_date} size="lg" />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              {event.is_active ? <Badge tone="green" dot>Published</Badge> : <Badge tone="amber" dot>Draft</Badge>}
+              <span className="text-xs text-muted">{EVENT_TYPE_LABELS[event.event_type as keyof typeof EVENT_TYPE_LABELS] || ""}</span>
+            </div>
+            <h1 className="mt-1 text-xl sm:text-2xl font-semibold tracking-tight text-ink leading-tight">{event.event_name}</h1>
+            <p className="mt-0.5 text-sm text-muted truncate">
+              {[event.event_time, event.venue].filter(Boolean).join(" · ") || event.chapter_name}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center gap-3 rounded-lg bg-canvas border border-line px-3.5 py-2.5">
+          <p className="flex-1 text-sm text-muted">
             {event.is_active
               ? "Open for check-in. Desk volunteers see this event."
-              : "Not visible to attendees or volunteers."}
+              : "Draft. Attendees and volunteers can't see it yet."}
           </p>
+          {event.is_active ? (
+            <Button size="sm" variant="secondary" onClick={() => setPublished(false)} loading={busy}>
+              Unpublish
+            </Button>
+          ) : (
+            <Button size="sm" onClick={() => setPublished(true)} loading={busy}>
+              Publish
+            </Button>
+          )}
         </div>
-        {event.is_active ? (
-          <Button size="sm" variant="secondary" onClick={() => setPublished(false)} loading={busy}>
-            Unpublish
-          </Button>
-        ) : (
-          <Button size="sm" onClick={() => setPublished(true)} loading={busy}>
-            Publish
-          </Button>
-        )}
+        {error && <Notice tone="error" className="mt-3">{error}</Notice>}
       </div>
-      {error && <Notice tone="error" className="mt-3">{error}</Notice>}
     </div>
   );
 }
@@ -172,17 +185,13 @@ export default function EventWorkspacePage() {
 
   return (
     <>
-      <AppHeader
-        wide
-        back={back}
-        title={event.event_name}
-        subtitle={[formatDate(event.event_date), event.venue].filter(Boolean).join(" · ")}
-        right={<SignOutButton />}
-      />
-      <Tabs wide tabs={TABS} value={tab} onChange={setTab} />
+      <AppHeader wide back={back} title="Events" right={<SignOutButton />} />
+      <EventHero event={event} publishedOther={publishedOther} onChange={replaceEvent} />
+      <div className="sticky top-[59px] z-20">
+        <Tabs wide tabs={TABS} value={tab} onChange={setTab} />
+      </div>
 
       <Page wide>
-        <PublishBar event={event} publishedOther={publishedOther} onChange={replaceEvent} />
 
         {tab === "overview" && <EventOverview eventId={event.event_id} />}
 
@@ -197,12 +206,12 @@ export default function EventWorkspacePage() {
 
         {tab === "attendees" && (
           <Card title="Attendee list">
-            <p className="text-sm text-stone-600">
-              Upload the <span className="font-medium text-stone-800">event attendees</span> CSV exported
+            <p className="text-sm text-muted">
+              Upload the <span className="font-medium text-ink">event attendees</span> CSV exported
               from the association website. Uploading again updates existing rows and adds new ones.
               People are matched to the members list by email or mobile.
             </p>
-            <p className="mt-3 text-sm text-stone-800">
+            <p className="mt-3 text-sm text-ink">
               {attendeeCount === null ? "" : `${attendeeCount} people on the list.`}
             </p>
             <div className="mt-3">
@@ -226,7 +235,7 @@ export default function EventWorkspacePage() {
               <EventForm event={event} submitLabel="Save changes" onSaved={replaceEvent} />
             </Card>
             <Card title="Delete event">
-              <p className="text-sm text-stone-600 mb-3">
+              <p className="text-sm text-muted mb-3">
                 Removes the event with all its check-ins, attendee list and fees. Download the check-ins
                 first if you need a record.
               </p>

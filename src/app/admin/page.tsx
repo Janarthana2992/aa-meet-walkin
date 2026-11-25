@@ -2,11 +2,13 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Plus } from "lucide-react";
+import { CalendarPlus, ChevronRight, Plus, Users } from "lucide-react";
 import { Event } from "@/types/database.types";
 import {
   AppHeader,
   Badge,
+  Card,
+  DateTile,
   Empty,
   LinkButton,
   Notice,
@@ -14,35 +16,31 @@ import {
   PageTitle,
   Spinner,
   api,
-  formatDate,
 } from "@/components/ui";
 import { SignOutButton } from "@/components/admin/SignOutButton";
 
+const today = () => new Date().toISOString().slice(0, 10);
+
 function EventRow({ ev }: { ev: Event }) {
-  const past = ev.event_date < new Date().toISOString().slice(0, 10);
+  const past = ev.event_date < today();
   return (
     <li>
-      <Link
-        href={`/admin/events/${ev.event_id}`}
-        className="flex items-center gap-3 px-4 py-3.5 hover:bg-stone-50"
-      >
+      <Link href={`/admin/events/${ev.event_id}`} className="flex items-center gap-4 px-4 py-3.5 hover:bg-canvas transition-colors">
+        <DateTile date={ev.event_date} />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-stone-900 truncate">{ev.event_name}</span>
+          <div className="font-semibold text-ink truncate">{ev.event_name}</div>
+          <div className="text-sm text-muted truncate">{ev.venue || ev.chapter_name}</div>
+          <div className="mt-1.5">
             {ev.is_active ? (
-              <Badge tone="green">Published</Badge>
+              <Badge tone="green" dot>Published</Badge>
             ) : past ? (
               <Badge>Finished</Badge>
             ) : (
-              <Badge tone="amber">Draft</Badge>
+              <Badge tone="amber" dot>Draft</Badge>
             )}
           </div>
-          <div className="text-sm text-stone-500 truncate">
-            {formatDate(ev.event_date)}
-            {ev.venue ? ` · ${ev.venue}` : ""}
-          </div>
         </div>
-        <ChevronRight className="w-4 h-4 text-stone-400 shrink-0" />
+        <ChevronRight className="w-5 h-5 text-muted/60 shrink-0" />
       </Link>
     </li>
   );
@@ -52,12 +50,14 @@ function Section({ title, events }: { title: string; events: Event[] }) {
   if (events.length === 0) return null;
   return (
     <section>
-      <h2 className="text-sm font-medium text-stone-500 mb-2">{title}</h2>
-      <ul className="bg-white rounded-lg border border-stone-200 divide-y divide-stone-200 overflow-hidden">
-        {events.map((ev) => (
-          <EventRow key={ev.event_id} ev={ev} />
-        ))}
-      </ul>
+      <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted">{title}</h2>
+      <Card padded={false}>
+        <ul className="divide-y divide-line">
+          {events.map((ev) => (
+            <EventRow key={ev.event_id} ev={ev} />
+          ))}
+        </ul>
+      </Card>
     </section>
   );
 }
@@ -72,19 +72,19 @@ export default function AdminEventsPage() {
       .catch((err) => setError(err.message));
   }, []);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const t = today();
   const published = (events || []).filter((e) => e.is_active);
   const upcoming = (events || [])
-    .filter((e) => !e.is_active && e.event_date >= today)
+    .filter((e) => !e.is_active && e.event_date >= t)
     .sort((a, b) => a.event_date.localeCompare(b.event_date));
-  const past = (events || []).filter((e) => !e.is_active && e.event_date < today);
+  const past = (events || []).filter((e) => !e.is_active && e.event_date < t);
 
   return (
     <>
-      <AppHeader title="IRTTAA Events" subtitle="Organizer" right={<SignOutButton />} />
+      <AppHeader right={<SignOutButton />} />
       <Page>
         <PageTitle
-          description="Open an event to see its check-ins, upload the attendee list, set fees and publish it."
+          description="Create events, upload attendee lists and publish the one that's happening."
           action={
             <LinkButton href="/admin/events/new" size="sm" className="shrink-0">
               <Plus className="w-4 h-4" /> New event
@@ -95,21 +95,21 @@ export default function AdminEventsPage() {
         </PageTitle>
 
         {error && <Notice tone="error">{error}</Notice>}
+
         {!events && !error ? (
           <Spinner />
         ) : events && events.length === 0 ? (
-          <div className="bg-white rounded-lg border border-stone-200">
-            <Empty>
-              No events yet.
-              <div className="mt-3">
-                <LinkButton href="/admin/events/new" size="sm">
-                  Create the first event
-                </LinkButton>
-              </div>
+          <Card>
+            <Empty
+              icon={CalendarPlus}
+              title="No events yet"
+              action={<LinkButton href="/admin/events/new">Create your first event</LinkButton>}
+            >
+              An event holds its own attendee list, fees and check-ins.
             </Empty>
-          </div>
+          </Card>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-6">
             <Section title="Published" events={published} />
             <Section title="Upcoming" events={upcoming} />
             <Section title="Past" events={past} />
@@ -117,20 +117,19 @@ export default function AdminEventsPage() {
         )}
 
         <section className="pt-2">
-          <h2 className="text-sm font-medium text-stone-500 mb-2">Association</h2>
-          <ul className="bg-white rounded-lg border border-stone-200">
-            <li>
-              <Link href="/admin/members" className="flex items-center gap-3 px-4 py-3.5 hover:bg-stone-50">
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-stone-900">Members list</div>
-                  <div className="text-sm text-stone-500">
-                    Used to recognise members at check-in. Shared by all events.
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-stone-400 shrink-0" />
-              </Link>
-            </li>
-          </ul>
+          <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Association</h2>
+          <Card padded={false}>
+            <Link href="/admin/members" className="flex items-center gap-4 px-4 py-3.5 hover:bg-canvas transition-colors rounded-xl">
+              <div className="w-12 h-12 shrink-0 rounded-xl bg-brand-50 flex items-center justify-center">
+                <Users className="w-5 h-5 text-brand-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold text-ink">Members list</div>
+                <div className="text-sm text-muted">Recognises members at check-in. Shared by all events.</div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted/60 shrink-0" />
+            </Link>
+          </Card>
         </section>
       </Page>
     </>

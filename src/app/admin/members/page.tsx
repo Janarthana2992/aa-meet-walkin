@@ -42,8 +42,8 @@ export default function MembersPage() {
         </PageTitle>
 
         <Card title="Update the list">
-          <p className="text-sm text-stone-600 mb-3">
-            Upload the <span className="font-medium text-stone-800">IRTT AA Members</span> CSV exported
+          <p className="text-sm text-muted mb-3">
+            Upload the <span className="font-medium text-ink">IRTT AA Members</span> CSV exported
             from the association website. New members are added and existing members are updated.
           </p>
           <CsvUpload endpoint="/api/admin/members" buttonLabel="Upload members CSV" onDone={() => setReload((n) => n + 1)} />
@@ -51,7 +51,7 @@ export default function MembersPage() {
 
         <Card title={`${total} members`}>
           <div className="relative mb-3">
-            <Search className="w-4 h-4 text-stone-400 absolute left-3 top-3.5 pointer-events-none" />
+            <Search className="w-4 h-4 text-muted/70 absolute left-3 top-3.5 pointer-events-none" />
             <Input
               type="search"
               aria-label="Search members"
@@ -66,12 +66,12 @@ export default function MembersPage() {
           ) : members.length === 0 ? (
             <Empty>No members found.</Empty>
           ) : (
-            <ul className="divide-y divide-stone-100">
+            <ul className="divide-y divide-line">
               {members.slice(0, 200).map((m) => (
                 <li key={m.member_login_id} className="py-2.5 flex items-center gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="text-stone-900 truncate">{m.full_name}</div>
-                    <div className="text-sm text-stone-500 truncate">
+                    <div className="text-ink truncate">{m.full_name}</div>
+                    <div className="text-sm text-muted truncate">
                       {[m.graduating_year, m.stream, m.email].filter(Boolean).join(" · ")}
                     </div>
                   </div>
