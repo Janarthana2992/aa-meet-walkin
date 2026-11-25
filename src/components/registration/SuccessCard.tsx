@@ -5,22 +5,24 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
-  Calendar,
-  Building2,
-  CreditCard,
   UserCheck,
   RotateCcw,
   Printer,
   Sparkles,
 } from "lucide-react";
-import { Attendee } from "@/types/database.types";
+import { EventRegistration } from "@/types/database.types";
 
 interface SuccessCardProps {
-  attendee: Attendee;
+  registration: EventRegistration;
+  eventName?: string;
   onReset: () => void;
 }
 
-export function SuccessCard({ attendee, onReset }: SuccessCardProps) {
+export function SuccessCard({
+  registration,
+  eventName,
+  onReset,
+}: SuccessCardProps) {
   const handlePrint = () => {
     window.print();
   };
@@ -33,7 +35,7 @@ export function SuccessCard({ attendee, onReset }: SuccessCardProps) {
       className="max-w-2xl mx-auto"
     >
       {/* Celebration Header */}
-      <div className="text-center mb-8">
+      <div className="text-center mb-8 print:hidden">
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
@@ -44,19 +46,18 @@ export function SuccessCard({ attendee, onReset }: SuccessCardProps) {
         </motion.div>
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-2">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Walk-In Registration & Check-In Complete</span>
+          <span>Event Registration & Check-In Complete</span>
         </span>
         <h2 className="text-3xl font-black text-teal-950">
-          Welcome, {attendee.name}!
+          Welcome, {registration.full_name}!
         </h2>
         <p className="text-sm text-teal-800/80 mt-1">
-          You are officially checked in to the Alumni Meet.
+          You are officially checked in{eventName ? ` for ${eventName}` : ""}.
         </p>
       </div>
 
       {/* Official Digital Attendee Badge Card */}
       <div className="p-8 rounded-3xl bg-white shadow-2xl shadow-teal-950/10 border-2 border-teal-200 relative overflow-hidden print:shadow-none print:border-black">
-        {/* Top Decorative Header */}
         <div className="flex items-center justify-between pb-6 border-b border-teal-100">
           <div className="flex items-center gap-3">
             <div className="relative w-12 h-12 rounded-2xl overflow-hidden shadow-md border-2 border-teal-200/80 bg-white flex items-center justify-center p-0.5">
@@ -70,10 +71,10 @@ export function SuccessCard({ attendee, onReset }: SuccessCardProps) {
             </div>
             <div>
               <h4 className="font-extrabold text-teal-950 text-base leading-tight">
-                IRTTAA NuzhAI
+                {eventName || "IRTTAA NuzhAI"}
               </h4>
               <p className="text-xs text-teal-700/80 font-medium">
-                Institute of Road and Transport Technology
+                Institute of Road and Transport Technology Alumni Association
               </p>
             </div>
           </div>
@@ -85,109 +86,110 @@ export function SuccessCard({ attendee, onReset }: SuccessCardProps) {
 
         {/* Badge Center Details */}
         <div className="py-6 space-y-4">
-          <div>
-            <span className="text-[11px] font-bold text-teal-700/70 uppercase tracking-widest">
-              Attendee ID
-            </span>
-            <div className="text-2xl font-mono font-black text-teal-900 tracking-wide mt-0.5">
-              {attendee.attendee_id}
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-bold text-teal-700/70 uppercase tracking-widest">
+                Pass Number
+              </span>
+              <div className="text-2xl font-mono font-black text-teal-900 tracking-wide mt-0.5">
+                IRTTAA-{String(registration.registration_id).padStart(4, "0")}
+              </div>
             </div>
+            <span
+              className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase ${
+                registration.registration_source === "PRE_REGISTERED"
+                  ? "bg-blue-100 text-blue-800"
+                  : "bg-orange-100 text-orange-800"
+              }`}
+            >
+              {registration.registration_source === "PRE_REGISTERED"
+                ? "Pre-Registered"
+                : "On-Spot Walk-In"}
+            </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 pt-2">
+          <div className="grid grid-cols-2 gap-4 pt-2 text-sm">
             <div>
-              <span className="text-[11px] font-bold text-teal-700/70 uppercase tracking-wider">
+              <span className="text-[11px] font-bold text-teal-700/70 uppercase tracking-wider block">
                 Full Name
               </span>
-              <p className="text-base font-bold text-teal-950 mt-0.5">
-                {attendee.name}
-              </p>
+              <div className="font-bold text-teal-950">
+                {registration.full_name}
+              </div>
             </div>
 
             <div>
-              <span className="text-[11px] font-bold text-teal-700/70 uppercase tracking-wider">
+              <span className="text-[11px] font-bold text-teal-700/70 uppercase tracking-wider block">
                 Batch & Stream
               </span>
-              <p className="text-base font-bold text-teal-950 mt-0.5 flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-teal-600 inline" />
-                <span>{attendee.batch_year} • {attendee.stream}</span>
-              </p>
+              <div className="font-bold text-teal-950">
+                {registration.graduating_year || "—"} •{" "}
+                {registration.course || ""} {registration.stream || ""}
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[11px] font-bold text-teal-700/70 uppercase tracking-wider block">
+                Email / Mobile
+              </span>
+              <div className="font-semibold text-teal-900 text-xs">
+                {registration.email}
+                {registration.mobile && (
+                  <span className="block font-mono">{registration.mobile}</span>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[11px] font-bold text-teal-700/70 uppercase tracking-wider block">
+                Food & Accompanying
+              </span>
+              <div className="font-semibold text-teal-900 text-xs">
+                {registration.food_preference || "Vegetarian"} • Family:{" "}
+                {registration.accompanying_family_count} • Alumni:{" "}
+                {registration.accompanying_alumni_count}
+              </div>
             </div>
           </div>
 
-          {attendee.company && (
+          {/* Payment Summary Box */}
+          <div className="mt-4 p-4 rounded-2xl bg-teal-50/80 border border-teal-100 flex flex-wrap items-center justify-between gap-2 text-xs">
             <div>
-              <span className="text-[11px] font-bold text-teal-700/70 uppercase tracking-wider">
-                Company / Organization
+              <span className="text-teal-700 font-semibold block">
+                Total Paid ({registration.payment_required ? registration.payment_mode : "Free Entry"})
               </span>
-              <p className="text-sm font-semibold text-teal-900 mt-0.5 flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-teal-600 inline" />
-                <span>{attendee.company}</span>
-              </p>
-            </div>
-          )}
-
-          {/* Payment Receipts Breakdown */}
-          <div className="pt-4 border-t border-teal-100 grid grid-cols-3 gap-3 bg-teal-50/60 p-4 rounded-2xl">
-            <div>
-              <span className="text-[10px] font-bold text-teal-700/80 uppercase">
-                Membership
+              <span className="text-lg font-black text-teal-950">
+                ₹{Number(registration.total_amount).toLocaleString("en-IN")}
               </span>
-              <p className="text-sm font-black text-teal-950">
-                ₹{Number(attendee.membership_amount || 0).toLocaleString("en-IN")}
-              </p>
-            </div>
-            <div>
-              <span className="text-[10px] font-bold text-teal-700/80 uppercase">
-                Contribution
+              <span className="text-[11px] text-teal-700/80 ml-2">
+                (Fee: ₹{registration.registration_fee} + Contribution: ₹
+                {registration.voluntary_contribution})
               </span>
-              <p className="text-sm font-black text-teal-950">
-                ₹{Number(attendee.contribution_amount || 0).toLocaleString("en-IN")}
-              </p>
             </div>
-            <div>
-              <span className="text-[10px] font-bold text-teal-700/80 uppercase">
-                Total Paid ({attendee.payment_mode})
-              </span>
-              <p className="text-base font-black text-emerald-700">
-                ₹{Number(attendee.amount_paid || 0).toLocaleString("en-IN")}
-              </p>
-            </div>
+            {registration.utr_last4 && (
+              <div className="px-3 py-1 rounded-lg bg-white border border-teal-200 font-mono font-bold text-teal-900">
+                UTR Ref: ****{registration.utr_last4}
+              </div>
+            )}
           </div>
-        </div>
-
-        {/* Footer with Check-In Timestamp */}
-        <div className="pt-4 border-t border-teal-100 flex items-center justify-between text-xs text-teal-700/80 font-medium">
-          <span>Mobile: {attendee.mobile}</span>
-          <span>
-            {attendee.checked_in_at
-              ? new Date(attendee.checked_in_at).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "Checked In"}
-          </span>
         </div>
       </div>
 
       {/* Action Buttons */}
-      <div className="mt-8 flex flex-col sm:flex-row items-center gap-4 print:hidden">
+      <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center print:hidden">
         <button
-          type="button"
           onClick={handlePrint}
-          className="w-full sm:w-1/2 py-3.5 px-5 rounded-2xl font-bold text-sm text-teal-950 bg-white hover:bg-teal-50 border border-teal-200 transition-all flex items-center justify-center gap-2 shadow-sm"
+          className="px-6 py-3.5 rounded-2xl bg-white hover:bg-teal-50 border border-teal-200 text-teal-950 font-bold text-sm shadow-sm flex items-center justify-center gap-2 cursor-pointer"
         >
           <Printer className="w-4 h-4 text-teal-700" />
-          <span>Print / Save Badge</span>
+          <span>Print Event Pass</span>
         </button>
-
         <button
-          type="button"
           onClick={onReset}
-          className="w-full sm:w-1/2 py-3.5 px-5 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-teal-700 to-teal-600 hover:from-teal-800 hover:to-teal-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-teal-800/25"
+          className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-teal-700 to-teal-600 hover:from-teal-800 hover:to-teal-700 text-white font-bold text-sm shadow-lg shadow-teal-800/20 flex items-center justify-center gap-2 cursor-pointer"
         >
           <RotateCcw className="w-4 h-4" />
-          <span>Register Another Alumni</span>
+          <span>Register Next Alumnus</span>
         </button>
       </div>
     </motion.div>

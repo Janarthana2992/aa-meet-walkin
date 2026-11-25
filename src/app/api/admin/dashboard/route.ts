@@ -1,22 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { attendeeController } from "@/server/controllers/attendee.controller";
+import { registrationController } from "@/server/controllers/registration.controller";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const eventId = searchParams.get("eventId") || undefined;
+  const { searchParams } = new URL(req.url);
+  const eventIdParam = searchParams.get("eventId");
+  const eventId =
+    eventIdParam && eventIdParam !== "all" ? Number(eventIdParam) : undefined;
 
-    const result = await attendeeController.handleDashboard(eventId);
-    if (!result.success) {
-      return NextResponse.json(result, { status: 400 });
-    }
+  const result = await registrationController.handleDashboardAnalytics(
+    eventId && !isNaN(eventId) ? eventId : undefined
+  );
 
-    return NextResponse.json(result);
-  } catch (err: unknown) {
-    const message =
-      err instanceof Error ? err.message : "Failed to load admin dashboard";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  if (!result.success) {
+    return NextResponse.json(result, { status: 500 });
   }
+  return NextResponse.json(result);
 }

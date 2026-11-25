@@ -9,13 +9,18 @@ export async function PATCH(
 ) {
   try {
     const { eventId } = await context.params;
+    const numericId = Number(eventId);
+    if (!numericId || isNaN(numericId)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid event ID" },
+        { status: 400 }
+      );
+    }
     const body = await req.json();
-
-    const result = await eventController.handleUpdateEvent(eventId, body);
+    const result = await eventController.handleUpdateEvent(numericId, body);
     if (!result.success) {
       return NextResponse.json(result, { status: 400 });
     }
-
     return NextResponse.json(result);
   } catch (err: unknown) {
     const message =
@@ -30,12 +35,17 @@ export async function DELETE(
 ) {
   try {
     const { eventId } = await context.params;
-    const result = await eventController.handleDeleteEvent(eventId);
-
+    const numericId = Number(eventId);
+    if (!numericId || isNaN(numericId)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid event ID" },
+        { status: 400 }
+      );
+    }
+    const result = await eventController.handleDeleteEvent(numericId);
     if (!result.success) {
       return NextResponse.json(result, { status: 400 });
     }
-
     return NextResponse.json(result);
   } catch (err: unknown) {
     const message =

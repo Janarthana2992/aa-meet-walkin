@@ -37,7 +37,7 @@ export default function HomePage() {
   }, []);
 
   const formatEventDate = (dateStr?: string) => {
-    if (!dateStr) return "26 September 2026";
+    if (!dateStr) return "Upcoming Event Date";
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr;
@@ -98,7 +98,9 @@ export default function HomePage() {
             className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-teal-100/80 border border-teal-300/60 text-teal-800 text-xs font-bold uppercase tracking-wider mb-6"
           >
             <Sparkles className="w-3.5 h-3.5 text-orange-600" />
-            <span>Official Event Portal</span>
+            <span>
+              {activeEvent?.chapter_name || "Official Event Portal"}
+            </span>
           </motion.div>
 
           <motion.h2
@@ -108,10 +110,10 @@ export default function HomePage() {
             className="text-4xl sm:text-5xl lg:text-6xl font-black text-teal-950 tracking-tight leading-tight"
           >
             {activeEvent ? (
-              activeEvent.title
+              activeEvent.event_name
             ) : (
               <>
-                Chennai Chapter Meet{" "}
+                IRTTAA Alumni Meet{" "}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-700 via-teal-600 to-orange-500">
                   2026
                 </span>
@@ -126,7 +128,7 @@ export default function HomePage() {
             className="mt-4 text-lg text-teal-850/80 max-w-2xl mx-auto leading-relaxed"
           >
             {activeEvent?.description ||
-              "Welcome IRTT Alumni! Fast-track your on-spot registration, collect event badges, and reconnect with fellow batchmates."}
+              "Welcome IRTT Alumni! Check in seamlessly using your email or mobile number—whether pre-registered, a recognized association member, or joining on the spot."}
           </motion.p>
 
           {/* Event Quick Details Banner */}
@@ -146,14 +148,14 @@ export default function HomePage() {
             </div>
             <div className="flex items-center justify-center space-x-2.5 text-teal-900 font-semibold text-sm">
               <MapPin className="w-4 h-4 text-teal-600" />
-              <span>{activeEvent?.location || "Chennai, Tamil Nadu"}</span>
+              <span>{activeEvent?.venue || "Venue To Be Announced"}</span>
             </div>
           </motion.div>
         </div>
 
         {/* Action Portals Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto w-full">
-          {/* Alumni Walk-in Portal */}
+          {/* Unified Venue Registration & Check-In */}
           <motion.div
             whileHover={{ y: -4 }}
             transition={{ duration: 0.2 }}
@@ -165,23 +167,24 @@ export default function HomePage() {
                 <UserPlus className="w-7 h-7" />
               </div>
               <h3 className="text-2xl font-bold text-teal-950">
-                Walk-In Registration
+                Venue Registration & Check-In
               </h3>
               <p className="mt-2 text-teal-800/70 text-sm leading-relaxed">
-                Just arrived at the venue? Fill your details in seconds, choose
-                membership or contribution, and get instantly checked in.
+                Enter your email or mobile to auto-fill from pre-registrations
+                or association records, review batch fee, complete QR/Cash
+                payment, and get your event pass.
               </p>
             </div>
             <Link
               href="/register"
               className="mt-8 inline-flex items-center justify-between w-full px-6 py-4 rounded-2xl text-base font-bold text-white bg-gradient-to-r from-teal-700 to-teal-600 hover:from-teal-800 hover:to-teal-700 shadow-lg shadow-teal-800/25 transition-all group-hover:shadow-xl"
             >
-              <span>Start Registration</span>
+              <span>Open Event Registration</span>
               <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
             </Link>
           </motion.div>
 
-          {/* Desk Check-in Portal */}
+          {/* Volunteer Desk Quick Lookup */}
           <motion.div
             whileHover={{ y: -4 }}
             transition={{ duration: 0.2 }}
@@ -193,18 +196,19 @@ export default function HomePage() {
                 <UserCheck className="w-7 h-7" />
               </div>
               <h3 className="text-2xl font-bold text-teal-950">
-                Search & Desk Check-In
+                Desk Check-In Directory
               </h3>
               <p className="mt-2 text-teal-800/70 text-sm leading-relaxed">
-                Pre-registered alumni can quickly be verified by Mobile Number,
-                Batch Year, or Name for instant badge release and entry.
+                Desk volunteers can verify checked-in passes, inspect UTR
+                references, or quickly search pre-registered alumni to start
+                their check-in.
               </p>
             </div>
             <Link
               href="/checkin"
               className="mt-8 inline-flex items-center justify-between w-full px-6 py-4 rounded-2xl text-base font-bold text-teal-950 bg-teal-50 hover:bg-teal-100/80 border border-teal-200 transition-all group-hover:border-teal-300"
             >
-              <span>Desk Check-In</span>
+              <span>Volunteer Desk View</span>
               <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1 text-teal-700" />
             </Link>
           </motion.div>
