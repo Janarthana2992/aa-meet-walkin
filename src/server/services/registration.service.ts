@@ -29,14 +29,12 @@ export class RegistrationService {
     query: string,
     providedEventId?: number
   ): Promise<VenueLookupResult> {
-    let eventId = providedEventId;
-    if (!eventId) {
-      const activeEvent = await eventService.getActiveEvent();
-      if (!activeEvent) {
-        throw new Error("No active event found.");
-      }
-      eventId = activeEvent.event_id;
+    // Check-in is only possible for the published event
+    const activeEvent = await eventService.getActiveEvent();
+    if (!activeEvent || (providedEventId && providedEventId !== activeEvent.event_id)) {
+      throw new Error("This event is not open for check-in.");
     }
+    const eventId = activeEvent.event_id;
 
     // 1. Check if already registered at venue for this event
     const existingReg = await registrationRepository.findByEventAndEmailOrMobile(
@@ -177,6 +175,9 @@ export class RegistrationService {
     const event = await eventService.getEventById(input.eventId);
     if (!event) {
       throw new Error("This event no longer exists. Please refresh the page.");
+    }
+    if (!event.is_active) {
+      throw new Error("This event is not open for check-in.");
     }
 
     // Never trust a membership tier sent by the browser: it decides the fee.

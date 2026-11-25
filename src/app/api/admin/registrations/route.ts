@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { registrationController } from "@/server/controllers/registration.controller";
+import { deskEventGuard } from "@/server/auth/request";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,14 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const eventIdParam = searchParams.get("eventId");
   const batchParam = searchParams.get("graduatingYear");
+
+  const denied = await deskEventGuard(
+    req,
+    eventIdParam && eventIdParam !== "all" ? Number(eventIdParam) : undefined
+  );
+  if (denied) {
+    return NextResponse.json({ success: false, error: denied }, { status: 403 });
+  }
 
   const result = await registrationController.handleListRegistrations({
     eventId:

@@ -42,14 +42,16 @@ When an alumnus arrives at the event venue and enters their **Email** or **Mobil
    - Alumnus can optionally enter a **Voluntary Contribution**.
    - When total payable > ₹0, displays *"Kindly do the payment using QR code on the table then Submit it."*, lets them select **`ONLINE`** (requires 4-digit **UPI/UTR reference `utr_last4`**) or **`CASH`**, and issues a printable **Digital Event Pass** (`IRTTAA-0001`).
 
-### 4. Volunteer Desk Directory (`/checkin`) & Admin Analytics (`/admin`)
-- **`/checkin`**: Live two-column view showing **Awaiting Check-In** pre-registrations alongside **Checked In** passes, with 1-click launch into `/register?q=...`.
-- **`/admin`**: 5-tab management dashboard:
-  1. **Overview & Analytics**: Live Venue Check-Ins, Total Headcount (including family/alumni), **Total Collected**, **Registration Fees vs Voluntary Contributions**, **Online vs Cash** split, Catering counts, and Batch/Stream distribution charts.
-  2. **Venue Registrations**: Search, filter, edit, delete, and export registrations to CSV.
-  3. **Events & Fee Rules**: Create/activate/delete events and edit batch fee configurations.
-  4. **Pre-Registrations Import**: Upload `event_pre_registrations.csv` per event.
-  5. **Association Members**: Upload `IRTT_AA_Members.csv` and search the member directory.
+### 4. Organizer area (`/admin`) and check-in desk (`/checkin`)
+- **`/admin`**: list of events (Published, Upcoming, Past) with a **New event** button, plus the association **Members list**.
+- **`/admin/events/[id]`**: everything about one event:
+  - **Publish / Unpublish**: only the published event is open for check-in and visible to desk volunteers. Publishing one event unpublishes the previous one. New events start as drafts.
+  - **Overview**: check-ins, total people, money collected (UPI vs cash, fees vs contributions), food, batch and branch counts, CSV downloads.
+  - **People**: checked in vs not arrived, search, tap a person to correct details or payment.
+  - **Attendees**: upload the website's event attendees CSV.
+  - **Fees**: one fee per batch range (or separate fees per membership type).
+  - **Settings**: edit details or delete the event.
+- **`/checkin`**: volunteers (desk PIN) see only the published event: checked in vs not arrived, with a button to start a check-in.
 
 ---
 
@@ -125,7 +127,7 @@ npm run start
 | `/register` | Public | Venue lookup (`?q=`), registration form, fee/QR UTR & pass |
 | `/checkin` | Desk / Public | Volunteer desk directory (Awaiting vs Checked-In passes) |
 | `/admin/login` | Admin | Login via Supabase Auth user or organizer quick access |
-| `/admin` | Protected | 5-tab Events, Fees, CSV Importers, Directory & Analytics |
+| `/admin` | Organizer | Events list, event pages, members list |
 
 **Access**:
 - **Organizers** sign in at `/admin/login` → *Organizer* with `ADMIN_EMAIL` / `ADMIN_PASSWORD`, or as a Supabase Auth user listed in `ADMIN_EMAILS`. They get the full `/admin` dashboard.
@@ -134,25 +136,24 @@ npm run start
 - Sessions are signed, httpOnly cookies; every `/admin` page and `/api/admin` endpoint is checked on the server (`src/middleware.ts`).
 
 ### Running a new event (every time)
-1. **Events & Fee Rules** → *Create New Event* (tick *active* to make it the event shown on `/register`). Default fee rules are created automatically; adjust ranges, membership types and amounts with *Fee Rules*.
-2. **Association Members** → upload the latest `IRTT AA Members.csv` export (adds new members, updates upgrades).
-3. **Pre-Registrations Import** → choose the event → upload the website's *event attendees* CSV. Attendees are matched to association members by email/mobile so they get member pricing.
-4. On the day: share the `DESK_PIN` with volunteers, open `/register` on the kiosk/tablets.
-5. After the event: download *Check-ins CSV* / *Pre-registrations CSV* from **Pre-Registrations Import**, or export the filtered list from **Venue Registrations**.
+1. **Members list** (from the events page): upload the latest `IRTT AA Members.csv`.
+2. **New event**: fill in the details. It is saved as a draft.
+3. In the event: **Attendees** → upload the website's event attendees CSV. **Fees** → check the batch fees.
+4. On the day: **Publish** the event, share the `DESK_PIN` with volunteers and open `/register` on the check-in phones or tablets.
+5. After the event: **Overview** → download check-ins and the attendee list, then **Unpublish**.
 
 ---
 
 ## Testing With Sample CSV Data
 
 Sample datasets are included in [`data/Example_data/`](./data/Example_data):
-1. Log into **`/admin/login`** → go to **Events & Fee Rules** → create an event (e.g., *Salem Chapter Meet 2026*).
-2. Go to **Association Members** → upload [`IRTT_AA_Members.csv`](./data/Example_data/IRTT_AA_Members.csv) (26 records).
-3. Go to **Pre-Registrations Import** → select your event and upload [`event_pre_registrations.csv`](./data/Example_data/event_pre_registrations.csv) (19 records, 3 of which match association members).
-4. Open **`/register`** and test all 3 venue journeys:
-   - **Pre-Registered**: Search `9597247891` or `msanthosh66@gmail.com` (Batch `2013` → ₹300 fee)
-   - **Recognized Association Member**: Search `prabhu1274@gmail.com` (Batch `1995` → ₹500 fee)
-   - **Free Entry / Walk-In**: Enter a new email and select Batch `2024` (₹0 Free Entry)
-5. Return to **`/admin` → Overview & Analytics** to inspect live check-ins, fee vs contribution totals, `ONLINE` (with UTR) vs `CASH` totals, and batch/stream breakdowns.
+1. Sign in at **`/admin/login`** and open **Members list** → upload [`IRTT_AA_Members.csv`](./data/Example_data/IRTT_AA_Members.csv) (26 members).
+2. **New event** → create an event, open it, go to **Attendees** → upload [`event_pre_registrations.csv`](./data/Example_data/event_pre_registrations.csv) (19 rows, 3 match members).
+3. **Publish** the event, then open **`/register`** and try:
+   - On the attendee list: `9597247891` or `msanthosh66@gmail.com`
+   - Members list only: `prabhu1274@gmail.com`
+   - New person: **Fill in my details instead**, batch 2024 (no fee)
+4. Back in the event, check **Overview** and **People**.
 
 ---
 

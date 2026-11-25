@@ -12,12 +12,9 @@ export class EventService {
     return eventRepository.getAllEvents();
   }
 
+  /** The published event (open for check-in), or null when none is published. */
   async getActiveEvent(): Promise<Event | null> {
-    const active = await eventRepository.getActiveEvent();
-    if (active) return active;
-
-    const all = await eventRepository.getAllEvents();
-    return all.length > 0 ? all[0] : null;
+    return eventRepository.getActiveEvent();
   }
 
   async getEventById(eventId: number): Promise<Event | null> {

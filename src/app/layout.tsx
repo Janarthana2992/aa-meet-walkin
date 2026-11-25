@@ -1,13 +1,19 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "IRTTAA NuzhAI | Alumni Meet Event Management",
-  description:
-    "Modern event check-in, on-spot walk-in registration, and analytics portal for IRTT Alumni Association.",
+  title: "IRTTAA Events",
+  description: "Event check-in for the IRTT Alumni Association.",
   icons: {
     icon: "/favicon.ico",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
@@ -17,7 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased selection:bg-teal-500/20 selection:text-teal-900">
+      <body className="antialiased bg-stone-50 text-stone-900">
         {children}
       </body>
     </html>
