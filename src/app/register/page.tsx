@@ -1,8 +1,12 @@
 "use client";
 
+/**
+ * Volunteer check-in (desk PIN or organizer sign-in required).
+ * Find → Details → Review → Pass.
+ */
 import React, { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, CalendarDays, Search, UserPlus } from "lucide-react";
+import { ArrowRight, CalendarDays, Search } from "lucide-react";
 import {
   BATCH_YEARS,
   COURSE_TYPES,
@@ -12,19 +16,12 @@ import {
   RegistrationMembershipType,
   STREAM_TYPES,
 } from "@/server/constants";
-import {
-  Event,
-  EventFeeConfiguration,
-  EventRegistration,
-  VenueLookupResult,
-} from "@/types/database.types";
+import { Event, EventFeeConfiguration, EventRegistration, VenueLookupResult } from "@/types/database.types";
 import {
   AppHeader,
   Button,
   Card,
   Empty,
-  Steps,
-  formatDate,
   Field,
   Input,
   LinkButton,
@@ -34,13 +31,22 @@ import {
   Select,
   Spinner,
   Stepper,
+  Steps,
   api,
+  formatDate,
   inr,
 } from "@/components/ui";
 import { PaymentCalculator } from "@/components/registration/PaymentCalculator";
 import { SuccessCard } from "@/components/registration/SuccessCard";
+import { AlumniResult, AlumniSearch } from "@/components/registration/AlumniSearch";
+import { ReviewCard } from "@/components/registration/ReviewCard";
 
-type Step = "find" | "details" | "done";
+type Step = "find" | "details" | "review" | "done";
+/** How the person was found: on the event's attendee list, on the alumni list, or new. */
+type Kind = "attendee" | "member" | "new";
+
+const STEP_LABELS = ["Find", "Details", "Review", "Pass"];
+const STEP_INDEX: Record<Step, number> = { find: 0, details: 1, review: 2, done: 3 };
 
 const FOOD_LABELS: Record<string, string> = {
   Vegetarian: "Veg",
@@ -61,7 +67,6 @@ interface FormState {
   membershipTypeUsed: RegistrationMembershipType;
   foodPreference: string;
   accompanyingFamilyCount: number;
-  accompanyingAlumniCount: number;
 }
 
 const EMPTY_FORM: FormState = {
@@ -75,24 +80,14 @@ const EMPTY_FORM: FormState = {
   membershipTypeUsed: "UNREGISTERED_MEMBER",
   foodPreference: "Vegetarian",
   accompanyingFamilyCount: 0,
-  accompanyingAlumniCount: 0,
 };
 
-function feeFor(
-  rules: EventFeeConfiguration[],
-  year: number,
-  membership: RegistrationMembershipType
-): number {
+function feeFor(rules: EventFeeConfiguration[], year: number, membership: RegistrationMembershipType): number {
   const active = rules.filter((r) => r.is_active);
-  const inRange = (r: EventFeeConfiguration) =>
-    year >= r.min_graduating_year && year <= r.max_graduating_year;
-  const rule =
-    active.find((r) => r.membership_type === membership && inRange(r)) ||
-    active.find(inRange);
+  const inRange = (r: EventFeeConfiguration) => year >= r.min_graduating_year && year <= r.max_graduating_year;
+  const rule = active.find((r) => r.membership_type === membership && inRange(r)) || active.find(inRange);
   if (rule) return Number(rule.registration_fee) || 0;
-  const tier = DEFAULT_BATCH_FEE_TIERS.find(
-    (t) => year >= t.minGraduatingYear && year <= t.maxGraduatingYear
-  );
+  const tier = DEFAULT_BATCH_FEE_TIERS.find((t) => year >= t.minGraduatingYear && year <= t.maxGraduatingYear);
   return tier ? tier.registrationFee : 0;
 }
 
@@ -104,31 +99,41 @@ function RegisterFlow() {
   const [loadingEvent, setLoadingEvent] = useState(true);
 
   const [step, setStep] = useState<Step>("find");
+  const [kind, setKind] = useState<Kind>("new");
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
-  const [found, setFound] = useState<VenueLookupResult["source"] | null>(null);
   const [findError, setFindError] = useState<string | null>(null);
+  const [notOnList, setNotOnList] = useState<string | null>(null);
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
-    setForm((f) => ({ ...f, [key]: value }));
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((f) => ({ ...f, [key]: value }));
 
   const [contribution, setContribution] = useState(0);
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("ONLINE");
   const [utrLast4, setUtrLast4] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [registration, setRegistration] = useState<EventRegistration | null>(null);
 
   const fee = feeFor(feeRules, form.graduatingYear, form.membershipTypeUsed);
   const total = fee + contribution;
 
-  const lookup = useCallback(async (q: string, eventId?: number) => {
+  const go = (next: Step) => {
+    setStep(next);
+    window.scrollTo({ top: 0 });
+  };
+
+  /**
+   * Looks a person up by email or mobile. `fromAlumniList` is true when the
+   * volunteer picked someone from the alumni search.
+   */
+  const lookup = useCallback(async (q: string, eventId?: number, fromAlumniList = false) => {
     const text = q.trim();
     if (!text) return;
     setSearching(true);
     setFindError(null);
+    setNotOnList(null);
     try {
       const { data } = await api<{ data: VenueLookupResult }>("/api/venue/lookup", {
         method: "POST",
@@ -136,10 +141,10 @@ function RegisterFlow() {
       });
       if (data.alreadyRegistered && data.existingRegistration) {
         setRegistration(data.existingRegistration);
-        setStep("done");
+        go("done");
         return;
       }
-      if (data.found && data.prefill) {
+      if (data.found && data.prefill && (data.source === "PRE_REGISTERED" || fromAlumniList)) {
         const p = data.prefill;
         setForm({
           memberLoginId: p.member_login_id,
@@ -152,19 +157,13 @@ function RegisterFlow() {
           membershipTypeUsed: p.membership_type_used,
           foodPreference: p.food_preference || "Vegetarian",
           accompanyingFamilyCount: p.accompanying_family_count || 0,
-          accompanyingAlumniCount: p.accompanying_alumni_count || 0,
         });
-        setFound(data.source);
-      } else {
-        setForm({
-          ...EMPTY_FORM,
-          email: text.includes("@") ? text.toLowerCase() : "",
-          mobile: text.includes("@") ? "" : text,
-        });
-        setFound("NONE");
+        setKind(data.source === "PRE_REGISTERED" ? "attendee" : "member");
+        go("details");
+        return;
       }
-      setStep("details");
-      window.scrollTo({ top: 0 });
+      // Not on this event's attendee list: continue with the alumni search
+      setNotOnList(text);
     } catch (err) {
       setFindError(err instanceof Error ? err.message : "Could not search. Try again.");
     } finally {
@@ -191,42 +190,55 @@ function RegisterFlow() {
   }, []);
 
   const startOver = () => {
-    setStep("find");
     setQuery("");
-    setFound(null);
+    setNotOnList(null);
     setFindError(null);
     setForm(EMPTY_FORM);
+    setKind("new");
     setContribution(0);
     setPaymentMode("ONLINE");
     setUtrLast4("");
-    setSubmitError(null);
+    setFormError(null);
     setRegistration(null);
-    window.scrollTo({ top: 0 });
+    go("find");
   };
 
-  const submit = async (e: React.FormEvent) => {
+  const addNew = () => {
+    const text = (notOnList || query).trim();
+    setForm({
+      ...EMPTY_FORM,
+      email: text.includes("@") ? text.toLowerCase() : "",
+      mobile: text && !text.includes("@") ? text : "",
+    });
+    setKind("new");
+    go("details");
+  };
+
+  const toReview = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!event) return;
-    if (!form.stream) {
-      setSubmitError("Please choose your branch.");
-      return;
-    }
+    if (!form.stream) return setFormError("Choose the branch.");
     if (total > 0 && paymentMode === "ONLINE" && !/^[0-9]{4}$/.test(utrLast4)) {
-      setSubmitError("Enter the last 4 digits of the UPI reference number.");
-      return;
+      return setFormError("Enter the last 4 digits of the UPI reference number.");
     }
+    setFormError(null);
+    go("review");
+  };
+
+  const submit = async () => {
+    if (!event) return;
     setSubmitting(true);
-    setSubmitError(null);
+    setFormError(null);
     try {
       const { data } = await api<{ data: EventRegistration }>("/api/register", {
         method: "POST",
         json: {
           eventId: event.event_id,
           ...form,
+          accompanyingAlumniCount: 0,
           fullName: form.fullName.trim(),
           email: form.email.trim(),
           mobile: form.mobile.trim(),
-          registrationSource: found === "PRE_REGISTERED" ? "PRE_REGISTERED" : "ON_SPOT",
+          registrationSource: kind === "attendee" ? "PRE_REGISTERED" : "ON_SPOT",
           recognizedMember: Boolean(form.memberLoginId),
           voluntaryContribution: contribution,
           paymentMode: total > 0 ? paymentMode : null,
@@ -234,26 +246,20 @@ function RegisterFlow() {
         },
       });
       setRegistration(data);
-      setStep("done");
-      window.scrollTo({ top: 0 });
+      go("done");
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Check-in failed. Please try again.");
+      setFormError(err instanceof Error ? err.message : "Check-in failed. Please try again.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const STEP_LABELS = ["Find you", "Details", "Pass"];
-  const stepIndex = step === "find" ? 0 : step === "details" ? 1 : 2;
-
   const header = (
-    <AppHeader title={event?.event_name || "Check in"} subtitle={event ? formatDate(event.event_date) : undefined} back={{ href: "/", label: "Back to event" }} />
-  );
-
-  const progress = (
-    <div className="pt-1 pb-1">
-      <Steps steps={STEP_LABELS} current={stepIndex} />
-    </div>
+    <AppHeader
+      title={event?.event_name || "Check-in"}
+      subtitle={event ? formatDate(event.event_date) : undefined}
+      back={{ href: "/checkin", label: "Back to desk" }}
+    />
   );
 
   if (loadingEvent) {
@@ -271,12 +277,8 @@ function RegisterFlow() {
         {header}
         <Page>
           <Card>
-            <Empty
-              icon={CalendarDays}
-              title="No event open for check-in"
-              action={<LinkButton href="/" variant="secondary">Back to home</LinkButton>}
-            >
-              Check-in opens on the day of the event.
+            <Empty icon={CalendarDays} title="No event is published" action={<LinkButton href="/checkin" variant="secondary">Back to desk</LinkButton>}>
+              Ask an organizer to publish today&apos;s event.
             </Empty>
           </Card>
         </Page>
@@ -284,6 +286,9 @@ function RegisterFlow() {
     );
   }
 
+  const progress = <Steps steps={STEP_LABELS} current={STEP_INDEX[step]} />;
+
+  /* ------------------------------------------------------------ pass */
   if (step === "done" && registration) {
     return (
       <>
@@ -296,6 +301,7 @@ function RegisterFlow() {
     );
   }
 
+  /* ------------------------------------------------------------ find */
   if (step === "find") {
     return (
       <>
@@ -303,107 +309,124 @@ function RegisterFlow() {
         <Page>
           {progress}
 
-          <Card>
-            <h1 className="text-xl font-semibold tracking-tight text-ink">Find your registration</h1>
-            <p className="mt-1 text-[15px] text-muted">
-              Enter the email or mobile number you registered with. We&apos;ll fill in the rest.
-            </p>
-
+          <Card title="Registered for this event" description="Search by the email or mobile number they registered with.">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 lookup(query, event.event_id);
               }}
-              className="mt-5 space-y-3"
+              className="space-y-3"
             >
-              <Field label="Email or mobile number">
-                <div className="relative">
-                  <Search className="w-4 h-4 text-muted absolute left-3.5 top-4 pointer-events-none" />
-                  <Input
-                    autoFocus
-                    type="text"
-                    inputMode="email"
-                    autoComplete="email"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    placeholder="name@gmail.com or 98765 43210"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </Field>
+              <div className="relative">
+                <Search className="w-4 h-4 text-muted absolute left-3.5 top-4 pointer-events-none" />
+                <Input
+                  autoFocus
+                  type="text"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  aria-label="Email or mobile number"
+                  placeholder="name@gmail.com or 98765 43210"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
               {findError && <Notice tone="error">{findError}</Notice>}
+              {notOnList && (
+                <Notice tone="warning">
+                  &ldquo;{notOnList}&rdquo; is not on this event&apos;s attendee list. Search the alumni list below.
+                </Notice>
+              )}
               <Button type="submit" size="lg" className="w-full" loading={searching} disabled={!query.trim()}>
-                Continue
+                Find
                 {!searching && <ArrowRight className="w-4 h-4" />}
               </Button>
             </form>
           </Card>
 
-          <Card>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 shrink-0 rounded-lg bg-brand-50 flex items-center justify-center">
-                <UserPlus className="w-5 h-5 text-brand-600" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="font-semibold text-ink">Didn&apos;t register online?</div>
-                <div className="text-sm text-muted">You can still check in here.</div>
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  setForm(EMPTY_FORM);
-                  setFound("NONE");
-                  setStep("details");
-                }}
-              >
-                Fill in
-              </Button>
-            </div>
+          <Card title="Did not register for this event" description="Search the alumni list by name, email or mobile.">
+            <AlumniSearch
+              busy={searching}
+              onSelect={(m: AlumniResult) => lookup(m.email, event.event_id, true)}
+              onAddNew={addNew}
+            />
           </Card>
         </Page>
       </>
     );
   }
 
-  // step === "details"
+  /* ---------------------------------------------------------- review */
+  if (step === "review") {
+    return (
+      <>
+        {header}
+        <Page className="pb-32">
+          {progress}
+          <ReviewCard
+            kind={kind}
+            data={{
+              fullName: form.fullName,
+              mobile: form.mobile,
+              email: form.email,
+              graduatingYear: form.graduatingYear,
+              course: form.course,
+              stream: form.stream,
+              foodPreference: form.foodPreference,
+              familyCount: form.accompanyingFamilyCount,
+              fee,
+              contribution,
+              paymentMode,
+              utrLast4,
+            }}
+          />
+          {formError && <Notice tone="error">{formError}</Notice>}
+        </Page>
+        <div className="fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur border-t border-line shadow-[0_-4px_12px_rgba(16,24,40,0.06)]">
+          <div className="max-w-2xl mx-auto px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] grid grid-cols-[auto_1fr] gap-3">
+            <Button variant="secondary" size="lg" onClick={() => go("details")} disabled={submitting}>
+              Edit
+            </Button>
+            <Button size="lg" onClick={submit} loading={submitting}>
+              Confirm check-in
+            </Button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  /* --------------------------------------------------------- details */
   return (
     <>
       {header}
-      <form onSubmit={submit}>
+      <form onSubmit={toReview}>
         <Page className="pb-32">
           {progress}
 
-          {found === "PRE_REGISTERED" && (
-            <Notice tone="success">We found your registration. Check the details below.</Notice>
-          )}
-          {found === "ASSOCIATION_MEMBER" && (
-            <Notice tone="success">You&apos;re on the members list. Check the details below.</Notice>
-          )}
-          {found === "NONE" && query && (
-            <Notice tone="info">No registration found for &ldquo;{query}&rdquo;. Fill in your details below.</Notice>
-          )}
+          {kind === "attendee" && <Notice tone="success">Found on the attendee list. Check the details.</Notice>}
+          {kind === "member" && <Notice tone="success">Found on the alumni list. Check the details.</Notice>}
+          {kind === "new" && <Notice tone="info">New alumnus. Fill in their details.</Notice>}
 
           <Card
-            title="Your details"
+            title="Details"
             action={
               <button type="button" onClick={startOver} className="text-sm font-medium text-brand-700 h-9 px-2 -mr-2 -mt-1 rounded-md hover:bg-brand-50">
-                Not you?
+                Start over
               </button>
             }
           >
             <div className="space-y-4">
               <Field label="Full name">
-                <Input required autoComplete="name" value={form.fullName} onChange={(e) => set("fullName", e.target.value)} />
+                <Input required autoComplete="off" value={form.fullName} onChange={(e) => set("fullName", e.target.value)} />
               </Field>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Mobile number">
-                  <Input required type="tel" inputMode="tel" autoComplete="tel" value={form.mobile} onChange={(e) => set("mobile", e.target.value)} />
+                  <Input required type="tel" inputMode="tel" autoComplete="off" value={form.mobile} onChange={(e) => set("mobile", e.target.value)} />
                 </Field>
                 <Field label="Email">
-                  <Input required type="email" autoComplete="email" autoCapitalize="none" value={form.email} onChange={(e) => set("email", e.target.value)} />
+                  <Input required type="email" autoComplete="off" autoCapitalize="none" value={form.email} onChange={(e) => set("email", e.target.value)} />
                 </Field>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -437,7 +460,7 @@ function RegisterFlow() {
             </div>
           </Card>
 
-          <Card title="Food and guests" description="Helps us plan food and seating.">
+          <Card title="Food and family">
             <div className="space-y-4">
               <Field group label="Food preference">
                 <Segmented
@@ -447,14 +470,11 @@ function RegisterFlow() {
                   options={FOOD_PREFERENCES.map((f) => ({ value: f, label: FOOD_LABELS[f] || f }))}
                 />
               </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field group label="Family members">
+              <Field group label="Family members coming with them">
+                <div className="max-w-48">
                   <Stepper label="family members" value={form.accompanyingFamilyCount} onChange={(v) => set("accompanyingFamilyCount", v)} />
-                </Field>
-                <Field group label="Other alumni">
-                  <Stepper label="other alumni" value={form.accompanyingAlumniCount} onChange={(v) => set("accompanyingAlumniCount", v)} />
-                </Field>
-              </div>
+                </div>
+              </Field>
             </div>
           </Card>
 
@@ -469,18 +489,18 @@ function RegisterFlow() {
             onUtrChange={setUtrLast4}
           />
 
-          {submitError && <Notice tone="error">{submitError}</Notice>}
+          {formError && <Notice tone="error">{formError}</Notice>}
         </Page>
 
-        {/* Total and submit stay within thumb reach */}
         <div className="fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur border-t border-line shadow-[0_-4px_12px_rgba(16,24,40,0.06)]">
           <div className="max-w-2xl mx-auto px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex items-center gap-4">
             <div className="shrink-0">
               <div className="text-xs font-medium text-muted">Total</div>
               <div className="text-xl font-semibold tracking-tight text-ink tabular-nums">{inr(total)}</div>
             </div>
-            <Button type="submit" size="lg" className="flex-1" loading={submitting}>
-              {total > 0 ? "Confirm and check in" : "Check in"}
+            <Button type="submit" size="lg" className="flex-1">
+              Review
+              <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
         </div>

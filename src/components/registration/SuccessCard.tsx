@@ -2,6 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { CheckCircle2, Printer, RotateCcw } from "lucide-react";
 import { Event, EventRegistration } from "@/types/database.types";
 import { Badge, Button, formatDate, inr, passNumber } from "@/components/ui";
@@ -14,12 +15,11 @@ interface SuccessCardProps {
 
 /** Ticket-style event pass shown after check-in (and printable). */
 export function SuccessCard({ registration: r, event, onReset }: SuccessCardProps) {
-  const guests = r.accompanying_family_count + r.accompanying_alumni_count;
 
   const details: [string, string][] = [
     ["Batch", [r.graduating_year, r.course, r.stream].filter(Boolean).join(" · ") || "—"],
     ["Food", r.food_preference || "—"],
-    ["Guests", guests > 0 ? `${guests} (${r.accompanying_family_count} family, ${r.accompanying_alumni_count} alumni)` : "None"],
+    ["Family", r.accompanying_family_count > 0 ? String(r.accompanying_family_count) : "None"],
     ["Checked in", new Date(r.checked_in_at.endsWith("Z") ? r.checked_in_at : `${r.checked_in_at}Z`).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })],
   ];
 
@@ -28,8 +28,8 @@ export function SuccessCard({ registration: r, event, onReset }: SuccessCardProp
       <div className="flex items-center gap-3 no-print">
         <CheckCircle2 className="w-8 h-8 text-green-600 shrink-0" />
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-ink">You&apos;re checked in</h1>
-          <p className="text-sm text-muted">Show this pass at the registration desk.</p>
+          <h1 className="text-xl font-semibold tracking-tight text-ink">Checked in</h1>
+          <p className="text-sm text-muted">Show this pass to the person, or print it.</p>
         </div>
       </div>
 
@@ -81,7 +81,7 @@ export function SuccessCard({ registration: r, event, onReset }: SuccessCardProp
 
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
             {details.map(([k, v]) => (
-              <div key={k} className={k === "Guests" ? "col-span-2" : ""}>
+              <div key={k}>
                 <dt className="text-muted">{k}</dt>
                 <dd className="font-medium text-ink">{v}</dd>
               </div>
@@ -107,8 +107,13 @@ export function SuccessCard({ registration: r, event, onReset }: SuccessCardProp
         </Button>
         <Button onClick={onReset}>
           <RotateCcw className="w-4 h-4" />
-          Next person
+          Next check-in
         </Button>
+      </div>
+      <div className="text-center no-print">
+        <Link href="/checkin" className="text-sm font-medium text-muted hover:text-ink">
+          Back to desk
+        </Link>
       </div>
     </div>
   );

@@ -12,6 +12,12 @@ export const eventSchema = z.object({
   eventTime: z.string().trim().optional().nullable(),
   description: z.string().trim().optional().nullable(),
   isActive: z.boolean().default(true),
+  deskPin: z
+    .string()
+    .trim()
+    .regex(/^[0-9]{4,8}$/, "Desk PIN must be 4 to 8 digits")
+    .optional()
+    .nullable(),
 });
 
 export type EventInput = z.infer<typeof eventSchema>;

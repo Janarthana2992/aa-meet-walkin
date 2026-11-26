@@ -186,9 +186,9 @@ All pages use the shared kit in `src/components/ui.tsx`, so colours, spacing and
 ### Pages
 | Route | Who | What |
 | :--- | :--- | :--- |
-| `/` | Public | The published event and a **Check in** button |
-| `/register` | Public | Find by email/mobile → confirm details → payment → event pass. `?q=` pre-fills the search. |
-| `/checkin` | Desk PIN | Published event only: checked in vs not arrived |
+| `/` | Public | The published event's details (no check-in) |
+| `/register` | Desk PIN / Organizer | Find (attendee list, then alumni list, then add new) → details → review → pass. `?q=` pre-fills the search. |
+| `/checkin` | Desk PIN | Published event only: checked in vs not arrived, New check-in |
 | `/admin/login` | Staff | Organizer (email + password) or desk volunteer (PIN) |
 | `/admin` | Organizer | Events list (Published / Upcoming / Past), New event, Members list |
 | `/admin/events/new` | Organizer | Create an event (saved as a draft) |

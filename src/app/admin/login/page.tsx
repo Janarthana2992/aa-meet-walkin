@@ -13,7 +13,7 @@ function nextPath(mode: Mode): string {
   if (typeof window === "undefined") return fallback;
   const next = new URLSearchParams(window.location.search).get("next");
   if (!next || !next.startsWith("/") || next.startsWith("//")) return fallback;
-  if (mode === "desk" && !next.startsWith("/checkin")) return "/checkin";
+  if (mode === "desk" && !next.startsWith("/checkin") && !next.startsWith("/register")) return "/checkin";
   return next;
 }
 

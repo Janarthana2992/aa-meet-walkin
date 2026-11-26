@@ -72,6 +72,11 @@ export class EventRepository {
 
     if (error) {
       console.error(`Error updating event ${eventId}:`, error.message);
+      if (/desk_pin/.test(error.message)) {
+        throw new Error(
+          "Desk PINs need a database update. Run data/DataBase_design/003_event_desk_pin.sql in Supabase."
+        );
+      }
       throw new Error(error.message);
     }
     return data as Event;

@@ -3,39 +3,36 @@
 import React, { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { EventFeeConfiguration } from "@/types/database.types";
-import {
-  LATEST_BATCH_YEAR,
-  MEMBERSHIP_DISPLAY_LABELS,
-  REGISTRATION_MEMBERSHIP_TYPES,
-  RegistrationMembershipType,
-} from "@/server/constants";
-import { Button, Card, Field, Input, Notice, Select, Spinner, api } from "@/components/ui";
+import { FIRST_BATCH_YEAR, REGISTRATION_MEMBERSHIP_TYPES } from "@/server/constants";
+import { Button, Card, Input, Notice, Spinner, api, inr } from "@/components/ui";
 
-type Tier = { min: number; max: number; fee: number };
+/** Each row: batches from `from` up to the next row's start pay `fee`. */
+type Row = { from: number; fee: number };
 
-/** Batch tiers if every membership type has the same active fees, else null. */
-function uniformTiers(rules: EventFeeConfiguration[]): Tier[] | null {
-  if (rules.length === 0) return [];
-  if (rules.some((r) => !r.is_active)) return null;
-  const sig = (type: string) =>
-    rules
-      .filter((r) => r.membership_type === type)
-      .map((r) => ({ min: r.min_graduating_year, max: r.max_graduating_year, fee: Number(r.registration_fee) || 0 }))
-      .sort((a, b) => a.min - b.min);
-  const base = sig(REGISTRATION_MEMBERSHIP_TYPES[0]);
-  return REGISTRATION_MEMBERSHIP_TYPES.every((t) => JSON.stringify(sig(t)) === JSON.stringify(base))
-    ? base
-    : null;
+const OPEN_END = 2100; // last row covers every later batch
+
+function rowsFromRules(rules: EventFeeConfiguration[]): { rows: Row[]; mixed: boolean } {
+  const active = rules.filter((r) => r.is_active);
+  const byStart = new Map<number, number[]>();
+  for (const r of active) {
+    byStart.set(r.min_graduating_year, [...(byStart.get(r.min_graduating_year) || []), Number(r.registration_fee) || 0]);
+  }
+  const rows = [...byStart.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([from, fees]) => ({ from, fee: Math.max(...fees) }));
+  const mixed = [...byStart.values()].some((fees) => new Set(fees).size > 1);
+  if (rows.length > 0) rows[0].from = FIRST_BATCH_YEAR;
+  return { rows, mixed };
 }
 
-/**
- * Entry fee editor. Simple mode: one fee per batch range for everyone.
- * Detailed mode: separate rules per membership type.
- */
+function rangeLabel(rows: Row[], i: number) {
+  const next = rows[i + 1];
+  return next ? `${rows[i].from} – ${next.from - 1}` : `${rows[i].from} onwards`;
+}
+
 export function FeeEditor({ eventId }: { eventId: number }) {
-  const [rules, setRules] = useState<EventFeeConfiguration[] | null>(null);
-  const [simple, setSimple] = useState(true);
-  const [tiers, setTiers] = useState<Tier[]>([]);
+  const [rows, setRows] = useState<Row[] | null>(null);
+  const [mixed, setMixed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -45,10 +42,9 @@ export function FeeEditor({ eventId }: { eventId: number }) {
     api<{ data: EventFeeConfiguration[] }>(`/api/admin/events/${eventId}/fees`)
       .then((res) => {
         if (cancelled) return;
-        setRules(res.data);
-        const uniform = uniformTiers(res.data);
-        setSimple(Boolean(uniform));
-        setTiers(uniform || []);
+        const parsed = rowsFromRules(res.data);
+        setRows(parsed.rows.length ? parsed.rows : [{ from: FIRST_BATCH_YEAR, fee: 0 }]);
+        setMixed(parsed.mixed);
       })
       .catch((err) => !cancelled && setError(err.message));
     return () => {
@@ -56,55 +52,38 @@ export function FeeEditor({ eventId }: { eventId: number }) {
     };
   }, [eventId]);
 
-  const expand = (list: Tier[]): EventFeeConfiguration[] =>
-    REGISTRATION_MEMBERSHIP_TYPES.flatMap((membership, m) =>
-      list.map((t, i) => ({
-        fee_configuration_id: -(m * 100 + i + 1),
-        event_id: eventId,
-        min_graduating_year: t.min,
-        max_graduating_year: t.max,
-        membership_type: membership,
-        registration_fee: t.fee,
-        display_order: i + 1,
-        is_active: true,
-        created_at: "",
-        updated_at: "",
-      }))
-    );
+  const update = (idx: number, patch: Partial<Row>) => {
+    setSaved(false);
+    setRows((rs) => rs && rs.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  };
 
-  const touch = () => setSaved(false);
-  const updateTier = (idx: number, patch: Partial<Tier>) => {
-    touch();
-    setTiers((ts) => ts.map((t, i) => (i === idx ? { ...t, ...patch } : t)));
-  };
-  const updateRule = (idx: number, patch: Partial<EventFeeConfiguration>) => {
-    touch();
-    setRules((rs) => rs && rs.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
-  };
+  const sorted = (rows || []).slice();
 
   const save = async () => {
-    const finalRules = simple ? expand(tiers) : rules || [];
-    if (finalRules.some((r) => !r.min_graduating_year || !r.max_graduating_year || r.min_graduating_year > r.max_graduating_year)) {
-      setError("Check the batch years. The first year must not be after the last year.");
-      return;
+    if (!rows) return;
+    const list = rows.slice().sort((a, b) => a.from - b.from);
+    for (let i = 1; i < list.length; i++) {
+      if (!list[i].from || list[i].from <= list[i - 1].from) {
+        setError("Each row must start at a later batch than the row above it.");
+        return;
+      }
     }
     setSaving(true);
     setError(null);
     try {
-      const res = await api<{ data: EventFeeConfiguration[] }>(`/api/admin/events/${eventId}/fees`, {
-        method: "PUT",
-        json: {
-          rules: finalRules.map((r, i) => ({
-            minGraduatingYear: r.min_graduating_year,
-            maxGraduatingYear: r.max_graduating_year,
-            membershipType: r.membership_type,
-            registrationFee: Number(r.registration_fee) || 0,
-            displayOrder: i + 1,
-            isActive: r.is_active,
-          })),
-        },
-      });
-      setRules(res.data);
+      const rules = REGISTRATION_MEMBERSHIP_TYPES.flatMap((membershipType) =>
+        list.map((r, i) => ({
+          minGraduatingYear: r.from,
+          maxGraduatingYear: list[i + 1] ? list[i + 1].from - 1 : OPEN_END,
+          membershipType,
+          registrationFee: Number(r.fee) || 0,
+          displayOrder: i + 1,
+          isActive: true,
+        }))
+      );
+      await api(`/api/admin/events/${eventId}/fees`, { method: "PUT", json: { rules } });
+      setRows(list);
+      setMixed(false);
       setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save fees.");
@@ -113,131 +92,95 @@ export function FeeEditor({ eventId }: { eventId: number }) {
     }
   };
 
-  if (!rules) return error ? <Notice tone="error">{error}</Notice> : <Spinner />;
-
-  const order = REGISTRATION_MEMBERSHIP_TYPES as readonly string[];
-  const sorted = rules
-    .map((r, idx) => ({ r, idx }))
-    .sort(
-      (a, b) =>
-        order.indexOf(a.r.membership_type) - order.indexOf(b.r.membership_type) ||
-        a.r.min_graduating_year - b.r.min_graduating_year
-    );
+  if (!rows) return error ? <Notice tone="error">{error}</Notice> : <Spinner />;
 
   return (
-    <Card>
-      {simple ? (
-        <div className="space-y-3">
-          <p className="text-sm text-muted">
-            Entry fee by batch year. The same fee applies to members and non-members. Enter 0 for free entry.
-          </p>
-          <div className="grid grid-cols-[1fr_1fr_1fr_2.75rem] gap-2 text-sm font-medium text-ink/80">
-            <span>First batch</span>
-            <span>Last batch</span>
-            <span>Fee (₹)</span>
-            <span />
-          </div>
-          {tiers.map((t, idx) => (
-            <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_2.75rem] gap-2">
-              <Input aria-label="First batch" type="number" inputMode="numeric" value={t.min} onChange={(e) => updateTier(idx, { min: Number(e.target.value) })} />
-              <Input aria-label="Last batch" type="number" inputMode="numeric" value={t.max} onChange={(e) => updateTier(idx, { max: Number(e.target.value) })} />
-              <Input aria-label="Fee" type="number" inputMode="numeric" min={0} value={t.fee} onChange={(e) => updateTier(idx, { fee: Number(e.target.value) || 0 })} />
-              <Button variant="ghost" aria-label="Remove row" className="px-0 text-muted" onClick={() => { touch(); setTiers((ts) => ts.filter((_, i) => i !== idx)); }}>
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </div>
-          ))}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                touch();
-                setTiers((ts) => {
-                  const last = ts[ts.length - 1];
-                  return [...ts, { min: last ? Math.min(last.max + 1, LATEST_BATCH_YEAR) : 1988, max: LATEST_BATCH_YEAR, fee: 0 }];
-                });
-              }}
-            >
-              <Plus className="w-4 h-4" /> Add row
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setRules(expand(tiers));
-                setSimple(false);
-              }}
-            >
-              Set different fees by membership
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <p className="text-sm text-muted">
-            A rule for the person&apos;s membership type and batch is used first. If none matches, any rule
-            covering their batch is used.
-          </p>
-          <ul className="divide-y divide-line border-y border-line">
-            {sorted.map(({ r, idx }) => (
-              <li key={r.fee_configuration_id} className="py-3 space-y-2">
-                <div className="flex gap-2">
-                  <Select aria-label="Membership" value={r.membership_type} className="flex-1" onChange={(e) => updateRule(idx, { membership_type: e.target.value as RegistrationMembershipType })}>
-                    {REGISTRATION_MEMBERSHIP_TYPES.map((t) => (
-                      <option key={t} value={t}>{MEMBERSHIP_DISPLAY_LABELS[t]}</option>
-                    ))}
-                  </Select>
-                  <Button variant="ghost" aria-label="Remove rule" className="w-11 px-0 text-muted" onClick={() => { touch(); setRules((rs) => rs && rs.filter((_, i) => i !== idx)); }}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <Field label="First batch">
-                    <Input type="number" inputMode="numeric" value={r.min_graduating_year} onChange={(e) => updateRule(idx, { min_graduating_year: Number(e.target.value) })} />
-                  </Field>
-                  <Field label="Last batch">
-                    <Input type="number" inputMode="numeric" value={r.max_graduating_year} onChange={(e) => updateRule(idx, { max_graduating_year: Number(e.target.value) })} />
-                  </Field>
-                  <Field label="Fee (₹)">
-                    <Input type="number" inputMode="numeric" min={0} value={r.registration_fee} onChange={(e) => updateRule(idx, { registration_fee: Number(e.target.value) || 0 })} />
-                  </Field>
-                </div>
-                <label className="flex items-center gap-2 text-sm text-ink/80">
-                  <input type="checkbox" checked={r.is_active} onChange={(e) => updateRule(idx, { is_active: e.target.checked })} className="w-4 h-4 accent-brand-600" />
-                  Rule in use
-                </label>
-              </li>
-            ))}
-          </ul>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              touch();
-              setRules((rs) => [
-                ...(rs || []),
-                {
-                  fee_configuration_id: -Date.now(),
-                  event_id: eventId,
-                  min_graduating_year: 1988,
-                  max_graduating_year: LATEST_BATCH_YEAR,
-                  membership_type: "UNREGISTERED_MEMBER",
-                  registration_fee: 0,
-                  display_order: (rs?.length ?? 0) + 1,
-                  is_active: true,
-                  created_at: "",
-                  updated_at: "",
-                } as EventFeeConfiguration,
-              ]);
-            }}
-          >
-            <Plus className="w-4 h-4" /> Add rule
-          </Button>
-        </div>
+    <Card title="Entry fee" description="Set the fee by batch year. Enter 0 for free entry.">
+      {mixed && (
+        <Notice tone="warning" className="mb-4">
+          This event had different fees for members and non-members. Saving applies one fee per batch to everyone.
+        </Notice>
       )}
 
-      <div className="mt-4 pt-4 border-t border-line space-y-3">
+      <ul className="divide-y divide-line border-y border-line">
+        {sorted.map((r, idx) => (
+          <li key={idx} className="py-3 flex items-end gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-ink">Batch {rangeLabel(sorted, idx)}</div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="block text-xs text-muted mb-1">From batch</span>
+                  {idx === 0 ? (
+                    <div className="h-12 px-3.5 flex items-center rounded-lg bg-canvas border border-line text-muted">
+                      {FIRST_BATCH_YEAR}
+                    </div>
+                  ) : (
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      value={r.from}
+                      onChange={(e) => update(idx, { from: Number(e.target.value) })}
+                    />
+                  )}
+                </label>
+                <label className="block">
+                  <span className="block text-xs text-muted mb-1">Fee (₹)</span>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    value={r.fee}
+                    onChange={(e) => update(idx, { fee: Math.max(0, Number(e.target.value) || 0) })}
+                  />
+                </label>
+              </div>
+            </div>
+            {idx === 0 ? (
+              <span className="w-11 shrink-0" aria-hidden="true" />
+            ) : (
+              <Button
+                variant="ghost"
+                aria-label={`Remove batch ${rangeLabel(sorted, idx)}`}
+                className="w-11 px-0 text-muted"
+                onClick={() => {
+                  setSaved(false);
+                  setRows((rs) => rs && rs.filter((_, i) => i !== idx));
+                }}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      <Button
+        variant="secondary"
+        size="sm"
+        className="mt-3"
+        onClick={() => {
+          setSaved(false);
+          setRows((rs) => {
+            const list = rs || [];
+            const last = list[list.length - 1];
+            return [...list, { from: (last?.from ?? FIRST_BATCH_YEAR) + 10, fee: 0 }];
+          });
+        }}
+      >
+        <Plus className="w-4 h-4" /> Add batch range
+      </Button>
+
+      <div className="mt-5 rounded-lg bg-canvas border border-line p-3 text-sm text-muted">
+        <div className="font-medium text-ink mb-1">Summary</div>
+        {sorted.map((r, i) => (
+          <div key={i} className="flex justify-between">
+            <span>Batch {rangeLabel(sorted, i)}</span>
+            <span className="text-ink tabular-nums">{r.fee > 0 ? inr(r.fee) : "Free"}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 space-y-3">
         {error && <Notice tone="error">{error}</Notice>}
         {saved && <Notice tone="success">Fees saved.</Notice>}
         <Button onClick={save} loading={saving} className="w-full sm:w-auto">

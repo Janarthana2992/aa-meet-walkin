@@ -83,6 +83,7 @@ export class EventService {
     if (input.description !== undefined)
       updates.description = input.description || null;
     if (input.isActive !== undefined) updates.is_active = input.isActive;
+    if (input.deskPin !== undefined) updates.desk_pin = input.deskPin || null;
 
     return eventRepository.updateEvent(eventId, updates);
   }

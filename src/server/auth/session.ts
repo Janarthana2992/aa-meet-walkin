@@ -13,6 +13,10 @@ export interface SessionPayload {
   sub: string;
   /** Expiry as unix seconds */
   exp: number;
+  /** Desk sessions: the published event they signed in to */
+  eid?: number;
+  /** Desk sessions: fingerprint of the PIN used (changing the PIN signs them out) */
+  pv?: string;
 }
 
 export const SESSION_COOKIE = "nuzhai_session";
@@ -58,12 +62,14 @@ async function getKey(): Promise<CryptoKey> {
 export async function signSession(
   role: SessionRole,
   sub: string,
-  ttlSeconds: number
+  ttlSeconds: number,
+  extra: Pick<SessionPayload, "eid" | "pv"> = {}
 ): Promise<string> {
   const payload: SessionPayload = {
     role,
     sub,
     exp: Math.floor(Date.now() / 1000) + ttlSeconds,
+    ...extra,
   };
   const body = toBase64Url(encoder.encode(JSON.stringify(payload)));
   const sig = await crypto.subtle.sign("HMAC", await getKey(), encoder.encode(body));
@@ -105,4 +111,10 @@ export function safeEqual(a: string, b: string): boolean {
     diff |= (aBytes[i] ?? 0) ^ (bBytes[i] ?? 0);
   }
   return diff === 0;
+}
+
+/** Short, non-reversible fingerprint of a desk PIN, stored in desk sessions. */
+export async function pinFingerprint(pin: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(`${getSecret()}:${pin}`));
+  return toBase64Url(new Uint8Array(digest)).slice(0, 12);
 }

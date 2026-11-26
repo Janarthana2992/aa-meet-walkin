@@ -5,9 +5,11 @@ import {
   ADMIN_SESSION_TTL_SECONDS,
   DESK_SESSION_TTL_SECONDS,
   SESSION_COOKIE,
+  pinFingerprint,
   safeEqual,
   signSession,
 } from "@/server/auth/session";
+import { currentDeskPin } from "@/server/auth/desk";
 import { clientIp, rateLimit } from "@/server/auth/rateLimit";
 
 export const dynamic = "force-dynamic";
@@ -96,15 +98,27 @@ export async function POST(req: NextRequest) {
       ttl = ADMIN_SESSION_TTL_SECONDS;
       token = await signSession("admin", parsed.email, ttl);
     } else {
-      const deskPin = process.env.DESK_PIN || "";
-      if (deskPin.length < 4 || !safeEqual(parsed.pin, deskPin)) {
+      const current = await currentDeskPin();
+      if (!current) {
         return NextResponse.json(
-          { success: false, error: "Incorrect desk PIN." },
+          { success: false, error: "No event is published right now." },
           { status: 401 }
         );
       }
+      if (!current.pin) {
+        return NextResponse.json(
+          { success: false, error: "No desk PIN is set for today's event. Ask an organizer." },
+          { status: 401 }
+        );
+      }
+      if (!safeEqual(parsed.pin, current.pin)) {
+        return NextResponse.json({ success: false, error: "Incorrect desk PIN." }, { status: 401 });
+      }
       ttl = DESK_SESSION_TTL_SECONDS;
-      token = await signSession("desk", "desk", ttl);
+      token = await signSession("desk", "desk", ttl, {
+        eid: current.eventId,
+        pv: await pinFingerprint(current.pin),
+      });
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Login failed";

@@ -55,7 +55,6 @@ export function EditRegistrationSheet({
           stream: draft.stream,
           foodPreference: draft.food_preference,
           accompanyingFamilyCount: draft.accompanying_family_count,
-          accompanyingAlumniCount: draft.accompanying_alumni_count,
           registrationFee: Number(draft.registration_fee) || 0,
           voluntaryContribution: Number(draft.voluntary_contribution) || 0,
           paymentMode: total > 0 ? draft.payment_mode || "CASH" : null,
@@ -132,14 +131,11 @@ export function EditRegistrationSheet({
           ))}
         </Select>
       </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field group label="Family">
-          <Stepper label="family" value={draft.accompanying_family_count} onChange={(v) => set("accompanying_family_count", v)} />
-        </Field>
-        <Field group label="Other alumni">
-          <Stepper label="alumni" value={draft.accompanying_alumni_count} onChange={(v) => set("accompanying_alumni_count", v)} />
-        </Field>
-      </div>
+      <Field group label="Family members">
+        <div className="max-w-48">
+          <Stepper label="family members" value={draft.accompanying_family_count} onChange={(v) => set("accompanying_family_count", v)} />
+        </div>
+      </Field>
 
       <div className="pt-2 border-t border-line space-y-4">
         <div className="grid grid-cols-2 gap-3">

@@ -22,12 +22,15 @@ import { FeeEditor } from "@/components/admin/FeeEditor";
 import { CsvUpload } from "@/components/admin/CsvUpload";
 import { EditRegistrationSheet } from "@/components/admin/EditRegistrationSheet";
 import { PeopleList } from "@/components/PeopleList";
+import { DeskPinCard } from "@/components/admin/DeskPinCard";
+import { NewAlumniList } from "@/components/admin/NewAlumniList";
 
-type Tab = "overview" | "people" | "attendees" | "fees" | "settings";
+type Tab = "overview" | "people" | "new" | "attendees" | "fees" | "settings";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "people", label: "People" },
+  { id: "new", label: "New alumni" },
   { id: "attendees", label: "Attendees" },
   { id: "fees", label: "Fees" },
   { id: "settings", label: "Settings" },
@@ -101,6 +104,7 @@ function EventHero({
             </Button>
           )}
         </div>
+        <DeskPinCard event={event} onChange={onChange} />
         {error && <Notice tone="error" className="mt-3">{error}</Notice>}
       </div>
     </div>
@@ -194,6 +198,15 @@ export default function EventWorkspacePage() {
       <Page wide>
 
         {tab === "overview" && <EventOverview eventId={event.event_id} />}
+
+        {tab === "new" && (
+          <NewAlumniList
+            eventId={event.event_id}
+            eventName={event.event_name}
+            onSelect={setEditing}
+            reloadKey={peopleKey}
+          />
+        )}
 
         {tab === "people" && (
           <PeopleList

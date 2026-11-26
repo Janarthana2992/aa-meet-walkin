@@ -126,7 +126,7 @@ export function PeopleList({
                       ) : (
                         <Badge>Free entry</Badge>
                       )}
-                      {guests > 0 && <Badge>+{guests} guests</Badge>}
+                      {guests > 0 && <Badge>+{guests} family</Badge>}
                       {!r.payment_confirmed && <Badge tone="red">Payment not confirmed</Badge>}
                     </div>
                   </div>

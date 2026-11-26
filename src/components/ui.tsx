@@ -212,7 +212,14 @@ export function Steps({ steps, current }: { steps: string[]; current: number }) 
         const done = i < current;
         const active = i === current;
         return (
-          <li key={label} className="flex items-center gap-2 min-w-0 flex-1 last:flex-none">
+          <li
+            key={label}
+            className={cx(
+              "flex items-center gap-2",
+              active || i === steps.length - 1 ? "flex-none" : "min-w-0 flex-1",
+              active && i < steps.length - 1 && "flex-1"
+            )}
+          >
             <span
               className={cx(
                 "w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-xs font-semibold",
@@ -224,7 +231,7 @@ export function Steps({ steps, current }: { steps: string[]; current: number }) 
             >
               {done ? <Check className="w-3.5 h-3.5" /> : i + 1}
             </span>
-            <span className={cx("text-sm truncate", active ? "font-medium text-ink" : "text-muted")}>{label}</span>
+            <span className={cx("text-sm", active ? "font-medium text-ink whitespace-nowrap" : "hidden sm:inline truncate text-muted")}>{label}</span>
             {i < steps.length - 1 && <span className="h-px flex-1 bg-line min-w-3" />}
           </li>
         );
@@ -630,8 +637,8 @@ export async function api<T = unknown>(
     headers: json !== undefined ? { "Content-Type": "application/json", ...(rest.headers || {}) } : rest.headers,
     body: json !== undefined ? JSON.stringify(json) : rest.body,
   });
-  if (res.status === 401 && typeof window !== "undefined" && url.startsWith("/api/admin")) {
-    window.location.href = `/admin/login?next=${encodeURIComponent(window.location.pathname)}`;
+  if (res.status === 401 && typeof window !== "undefined" && !url.startsWith("/api/auth")) {
+    window.location.href = `/admin/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
   }
   const body = await res.json().catch(() => ({}));
   if (!res.ok || body.success === false) {

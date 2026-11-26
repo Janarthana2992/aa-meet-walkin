@@ -2,15 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CalendarDays, Clock, MapPin, Search, Ticket, UserCheck } from "lucide-react";
+import { CalendarDays, Clock, MapPin, UserCheck } from "lucide-react";
 import { Event } from "@/types/database.types";
-import { BrandMark, DateTile, LinkButton, Spinner, formatLongDate } from "@/components/ui";
+import { BrandMark, DateTile, Spinner, formatLongDate } from "@/components/ui";
 
-const STEPS = [
-  { icon: Search, title: "Find your registration", text: "Enter the email or mobile number you registered with." },
-  { icon: UserCheck, title: "Confirm your details", text: "Check your batch, food choice and guests." },
-  { icon: Ticket, title: "Pay and get your pass", text: "Pay by UPI or cash and show the pass at the desk." },
-];
 
 export default function HomePage() {
   const [event, setEvent] = useState<Event | null>(null);
@@ -96,32 +91,15 @@ export default function HomePage() {
                   )}
                 </ul>
               </div>
-              <div className="px-5 sm:px-7 py-4 bg-canvas/60 border-t border-line">
-                <LinkButton href="/register" size="lg" className="w-full">
-                  Check in
-                  <ArrowRight className="w-4 h-4" />
-                </LinkButton>
+              <div className="px-5 sm:px-7 py-4 bg-canvas/60 border-t border-line flex items-start gap-3">
+                <UserCheck className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" />
+                <p className="text-sm text-ink">
+                  Check-in is at the registration desk at the venue. Please bring the email or mobile
+                  number you registered with.
+                </p>
               </div>
             </section>
 
-            <section>
-              <h2 className="text-sm font-semibold text-ink">How check-in works</h2>
-              <ol className="mt-3 grid gap-3 sm:grid-cols-3">
-                {STEPS.map(({ icon: Icon, title, text }, i) => (
-                  <li key={title} className="flex sm:flex-col gap-3 bg-white rounded-xl border border-line p-4">
-                    <div className="w-9 h-9 shrink-0 rounded-lg bg-brand-50 flex items-center justify-center">
-                      <Icon className="w-4 h-4 text-brand-600" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold text-ink">
-                        {i + 1}. {title}
-                      </div>
-                      <div className="mt-0.5 text-sm text-muted">{text}</div>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </section>
           </>
         ) : (
           <section className="bg-white rounded-2xl border border-line p-8 text-center">
