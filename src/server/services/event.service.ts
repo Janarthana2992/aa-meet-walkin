@@ -138,14 +138,8 @@ export class EventService {
         return Number(exactMatch.registration_fee) || 0;
       }
 
-      const yearMatch = activeRules.find(
-        (r) =>
-          graduatingYear >= r.min_graduating_year &&
-          graduatingYear <= r.max_graduating_year
-      );
-      if (yearMatch) {
-        return Number(yearMatch.registration_fee) || 0;
-      }
+      // A rule only applies to the member types it was set for; anything not
+      // covered falls through to the standard schedule below.
     }
 
     // Fallback to default batch schedule

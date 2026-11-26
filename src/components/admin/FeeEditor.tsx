@@ -1,27 +1,30 @@
 "use client";
 
 /**
- * Entry fee editor.
+ * Entry fee rules for an event.
  *
- * Fees are organised in groups. Each group applies to one or more member
- * types (multi-select) and has its own list of "from batch → fee" rows.
- * Every member type belongs to exactly one group, so there is never a gap or
- * a conflict. Saved as per-type rules in event_fee_configurations.
+ * Each rule: start batch year, end batch year, fee, and the member types it
+ * applies to (multi-select). Saved as one row per member type in
+ * event_fee_configurations.
  */
 import React, { useEffect, useState } from "react";
 import { Check, Plus, Trash2 } from "lucide-react";
 import { EventFeeConfiguration } from "@/types/database.types";
 import {
   FIRST_BATCH_YEAR,
+  LATEST_BATCH_YEAR,
   REGISTRATION_MEMBERSHIP_TYPES,
   RegistrationMembershipType,
 } from "@/server/constants";
 import { Button, Card, Input, Notice, Spinner, api, cx, inr } from "@/components/ui";
 
-type Row = { from: number; fee: number };
-type Group = { id: number; types: RegistrationMembershipType[]; rows: Row[] };
-
-const OPEN_END = 2100; // last row covers every later batch
+type Rule = {
+  key: number;
+  start: number;
+  end: number;
+  fee: number;
+  types: RegistrationMembershipType[];
+};
 
 const TYPE_LABELS: Record<RegistrationMembershipType, string> = {
   PATRON_MEMBER: "Patron",
@@ -30,78 +33,88 @@ const TYPE_LABELS: Record<RegistrationMembershipType, string> = {
   UNREGISTERED_MEMBER: "Not a member",
 };
 
-let nextId = 1;
-const newId = () => nextId++;
+let keySeq = 1;
 
-const DEFAULT_ROWS: Row[] = [
-  { from: FIRST_BATCH_YEAR, fee: 500 },
-  { from: 2001, fee: 400 },
-  { from: 2011, fee: 300 },
-  { from: 2021, fee: 0 },
-];
-
-/** Turn stored per-type rules into groups of types that share the same rows. */
-function groupsFromRules(rules: EventFeeConfiguration[]): Group[] {
-  const rowsByType = new Map<RegistrationMembershipType, Row[]>();
-  for (const type of REGISTRATION_MEMBERSHIP_TYPES) {
-    const rows = rules
-      .filter((r) => r.is_active && r.membership_type === type)
-      .sort((a, b) => a.min_graduating_year - b.min_graduating_year)
-      .map((r) => ({ from: r.min_graduating_year, fee: Number(r.registration_fee) || 0 }));
-    if (rows.length) rows[0].from = FIRST_BATCH_YEAR;
-    rowsByType.set(type, rows);
+/** Stored rows are per member type; show one rule per (start, end, fee). */
+function rulesFromRows(rows: EventFeeConfiguration[]): Rule[] {
+  const rules: Rule[] = [];
+  for (const r of rows.filter((x) => x.is_active)) {
+    const fee = Number(r.registration_fee) || 0;
+    const existing = rules.find((x) => x.start === r.min_graduating_year && x.end === r.max_graduating_year && x.fee === fee);
+    if (existing) {
+      if (!existing.types.includes(r.membership_type)) existing.types.push(r.membership_type);
+    } else {
+      rules.push({ key: keySeq++, start: r.min_graduating_year, end: r.max_graduating_year, fee, types: [r.membership_type] });
+    }
   }
-  // Types with no rules of their own fall back to the first type that has rules
-  const fallback = [...rowsByType.values()].find((r) => r.length) || DEFAULT_ROWS;
-
-  const groups: Group[] = [];
-  for (const type of REGISTRATION_MEMBERSHIP_TYPES) {
-    const rows = rowsByType.get(type)!.length ? rowsByType.get(type)! : fallback;
-    const key = JSON.stringify(rows);
-    const existing = groups.find((g) => JSON.stringify(g.rows) === key);
-    if (existing) existing.types.push(type);
-    else groups.push({ id: newId(), types: [type], rows: rows.map((r) => ({ ...r })) });
-  }
-  return groups;
+  const order = REGISTRATION_MEMBERSHIP_TYPES as readonly string[];
+  rules.forEach((r) => r.types.sort((a, b) => order.indexOf(a) - order.indexOf(b)));
+  return rules.sort((a, b) => a.start - b.start || order.indexOf(a.types[0]) - order.indexOf(b.types[0]));
 }
 
-function rangeLabel(rows: Row[], i: number) {
-  const next = rows[i + 1];
-  return next ? `${rows[i].from} – ${next.from - 1}` : `${rows[i].from} onwards`;
+/** Returns a message describing the first problem, or null when valid. */
+function validate(rules: Rule[]): string | null {
+  for (const [i, r] of rules.entries()) {
+    const n = `Rule ${i + 1}`;
+    if (!r.start || !r.end) return `${n}: enter both the start and end year.`;
+    if (r.start < 1950 || r.end > 2100) return `${n}: years must be between 1950 and 2100.`;
+    if (r.start > r.end) return `${n}: the start year must not be after the end year.`;
+    if (r.types.length === 0) return `${n}: select at least one member type.`;
+  }
+  for (let i = 0; i < rules.length; i++) {
+    for (let j = i + 1; j < rules.length; j++) {
+      const a = rules[i];
+      const b = rules[j];
+      const shared = a.types.filter((t) => b.types.includes(t));
+      if (shared.length && a.start <= b.end && b.start <= a.end) {
+        return `Rules ${i + 1} and ${j + 1} overlap for ${shared.map((t) => TYPE_LABELS[t]).join(", ")} (batch ${Math.max(a.start, b.start)}–${Math.min(a.end, b.end)}).`;
+      }
+    }
+  }
+  return null;
 }
 
-function TypePicker({
+function TypeChips({
   selected,
-  onToggle,
+  onChange,
 }: {
   selected: RegistrationMembershipType[];
-  onToggle: (type: RegistrationMembershipType) => void;
+  onChange: (types: RegistrationMembershipType[]) => void;
 }) {
+  const all = selected.length === REGISTRATION_MEMBERSHIP_TYPES.length;
+  const chip = (on: boolean) =>
+    cx(
+      "h-9 pl-2.5 pr-3 rounded-full border text-sm font-medium inline-flex items-center gap-1.5 transition-colors",
+      on ? "border-brand-500 bg-brand-50 text-brand-700" : "border-line bg-white text-muted hover:text-ink"
+    );
+  const box = (on: boolean) =>
+    cx("w-4 h-4 rounded flex items-center justify-center border", on ? "bg-brand-600 border-brand-600 text-white" : "border-line bg-white");
+
   return (
     <div className="flex flex-wrap gap-2" role="group" aria-label="Member types">
-      {REGISTRATION_MEMBERSHIP_TYPES.map((type) => {
-        const on = selected.includes(type);
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={all}
+        onClick={() => onChange(all ? [] : [...REGISTRATION_MEMBERSHIP_TYPES])}
+        className={chip(all)}
+      >
+        <span className={box(all)}>{all && <Check className="w-3 h-3" />}</span>
+        All
+      </button>
+      {REGISTRATION_MEMBERSHIP_TYPES.map((t) => {
+        const on = selected.includes(t);
         return (
           <button
-            key={type}
+            key={t}
             type="button"
             role="checkbox"
             aria-checked={on}
-            onClick={() => onToggle(type)}
-            className={cx(
-              "h-9 pl-2.5 pr-3 rounded-full border text-sm font-medium inline-flex items-center gap-1.5 transition-colors",
-              on ? "border-brand-500 bg-brand-50 text-brand-700" : "border-line bg-white text-muted hover:text-ink"
-            )}
+            onClick={() => onChange(on ? selected.filter((x) => x !== t) : [...selected, t])}
+            className={chip(on)}
           >
-            <span
-              className={cx(
-                "w-4 h-4 rounded flex items-center justify-center border",
-                on ? "bg-brand-600 border-brand-600 text-white" : "border-line bg-white"
-              )}
-            >
-              {on && <Check className="w-3 h-3" />}
-            </span>
-            {TYPE_LABELS[type]}
+            <span className={box(on)}>{on && <Check className="w-3 h-3" />}</span>
+            {TYPE_LABELS[t]}
           </button>
         );
       })}
@@ -109,78 +122,8 @@ function TypePicker({
   );
 }
 
-function BatchRows({
-  rows,
-  onChange,
-}: {
-  rows: Row[];
-  onChange: (rows: Row[]) => void;
-}) {
-  const update = (idx: number, patch: Partial<Row>) =>
-    onChange(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
-
-  return (
-    <>
-      <ul className="divide-y divide-line border-y border-line">
-        {rows.map((r, idx) => (
-          <li key={idx} className="py-3 flex items-end gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-ink">Batch {rangeLabel(rows, idx)}</div>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <label className="block">
-                  <span className="block text-xs text-muted mb-1">From batch</span>
-                  {idx === 0 ? (
-                    <div className="h-12 px-3.5 flex items-center rounded-lg bg-canvas border border-line text-muted">
-                      {FIRST_BATCH_YEAR}
-                    </div>
-                  ) : (
-                    <Input type="number" inputMode="numeric" value={r.from} onChange={(e) => update(idx, { from: Number(e.target.value) })} />
-                  )}
-                </label>
-                <label className="block">
-                  <span className="block text-xs text-muted mb-1">Fee (₹)</span>
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    min={0}
-                    value={r.fee}
-                    onChange={(e) => update(idx, { fee: Math.max(0, Number(e.target.value) || 0) })}
-                  />
-                </label>
-              </div>
-            </div>
-            {idx === 0 ? (
-              <span className="w-11 shrink-0" aria-hidden="true" />
-            ) : (
-              <Button
-                variant="ghost"
-                aria-label={`Remove batch ${rangeLabel(rows, idx)}`}
-                className="w-11 px-0 text-muted"
-                onClick={() => onChange(rows.filter((_, i) => i !== idx))}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
-          </li>
-        ))}
-      </ul>
-      <Button
-        variant="secondary"
-        size="sm"
-        className="mt-3"
-        onClick={() => {
-          const last = rows[rows.length - 1];
-          onChange([...rows, { from: (last?.from ?? FIRST_BATCH_YEAR) + 10, fee: 0 }]);
-        }}
-      >
-        <Plus className="w-4 h-4" /> Add batch range
-      </Button>
-    </>
-  );
-}
-
 export function FeeEditor({ eventId }: { eventId: number }) {
-  const [groups, setGroups] = useState<Group[] | null>(null);
+  const [rules, setRules] = useState<Rule[] | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -188,96 +131,65 @@ export function FeeEditor({ eventId }: { eventId: number }) {
   useEffect(() => {
     let cancelled = false;
     api<{ data: EventFeeConfiguration[] }>(`/api/admin/events/${eventId}/fees`)
-      .then((res) => !cancelled && setGroups(groupsFromRules(res.data)))
+      .then((res) => !cancelled && setRules(rulesFromRows(res.data)))
       .catch((err) => !cancelled && setError(err.message));
     return () => {
       cancelled = true;
     };
   }, [eventId]);
 
-  const change = (next: Group[]) => {
+  const update = (key: number, patch: Partial<Rule>) => {
     setSaved(false);
     setError(null);
-    setGroups(next);
+    setRules((rs) => rs && rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   };
 
-  /** Selecting a type in one group moves it out of every other group. */
-  const toggleType = (groupId: number, type: RegistrationMembershipType) => {
-    if (!groups) return;
-    const group = groups.find((g) => g.id === groupId)!;
-    if (group.types.includes(type)) {
-      if (groups.length === 1) {
-        setError("With a single fee list it must cover every member type. Add a separate fee list instead.");
-        return;
-      }
-      // Removing a type from a group hands it to the first other group
-      const target = groups.find((g) => g.id !== groupId)!;
-      change(
-        groups
-          .map((g) =>
-            g.id === groupId
-              ? { ...g, types: g.types.filter((t) => t !== type) }
-              : g.id === target.id
-                ? { ...g, types: [...g.types, type] }
-                : g
-          )
-          .filter((g) => g.types.length > 0)
-      );
-    } else {
-      change(
-        groups
-          .map((g) =>
-            g.id === groupId ? { ...g, types: [...g.types, type] } : { ...g, types: g.types.filter((t) => t !== type) }
-          )
-          .filter((g) => g.types.length > 0)
-      );
-    }
-  };
-
-  const addGroup = () => {
-    if (!groups) return;
-    const first = groups[0];
-    // Start the new list with the first group's rows and one type taken from it
-    const take = first.types.find((t) => t !== "UNREGISTERED_MEMBER") || first.types[first.types.length - 1];
-    if (!take || first.types.length < 2) {
-      setError("Every member type already has its own fee list.");
-      return;
-    }
-    change([
-      ...groups.map((g) => (g.id === first.id ? { ...g, types: g.types.filter((t) => t !== take) } : g)),
-      { id: newId(), types: [take], rows: first.rows.map((r) => ({ ...r })) },
-    ]);
+  const addRule = () => {
+    setSaved(false);
+    setError(null);
+    setRules((rs) => {
+      const list = rs || [];
+      const lastEnd = list.reduce((m, r) => Math.max(m, r.end || 0), FIRST_BATCH_YEAR - 1);
+      // Continue after the last rule; leave the years empty when every batch is already covered
+      const covered = lastEnd >= LATEST_BATCH_YEAR;
+      return [
+        ...list,
+        {
+          key: Math.max(keySeq++, ...list.map((r) => r.key + 1)),
+          start: covered ? 0 : lastEnd + 1,
+          end: covered ? 0 : LATEST_BATCH_YEAR,
+          fee: 0,
+          types: [...REGISTRATION_MEMBERSHIP_TYPES],
+        },
+      ];
+    });
   };
 
   const save = async () => {
-    if (!groups) return;
-    for (const g of groups) {
-      const sorted = g.rows.slice().sort((a, b) => a.from - b.from);
-      for (let i = 1; i < sorted.length; i++) {
-        if (!sorted[i].from || sorted[i].from <= sorted[i - 1].from) {
-          setError(`Fee list for ${g.types.map((t) => TYPE_LABELS[t]).join(", ")}: each row must start at a later batch than the one above.`);
-          return;
-        }
-      }
+    if (!rules) return;
+    const problem = validate(rules);
+    if (problem) {
+      setError(problem);
+      return;
     }
     setSaving(true);
     setError(null);
     try {
-      const rules = groups.flatMap((g) => {
-        const rows = g.rows.slice().sort((a, b) => a.from - b.from);
-        return g.types.flatMap((membershipType) =>
-          rows.map((r, i) => ({
-            minGraduatingYear: r.from,
-            maxGraduatingYear: rows[i + 1] ? rows[i + 1].from - 1 : OPEN_END,
-            membershipType,
-            registrationFee: Number(r.fee) || 0,
-            displayOrder: i + 1,
-            isActive: true,
-          }))
-        );
+      const payload = rules.flatMap((r, i) =>
+        r.types.map((membershipType) => ({
+          minGraduatingYear: r.start,
+          maxGraduatingYear: r.end,
+          membershipType,
+          registrationFee: Number(r.fee) || 0,
+          displayOrder: i + 1,
+          isActive: true,
+        }))
+      );
+      const res = await api<{ data: EventFeeConfiguration[] }>(`/api/admin/events/${eventId}/fees`, {
+        method: "PUT",
+        json: { rules: payload },
       });
-      await api(`/api/admin/events/${eventId}/fees`, { method: "PUT", json: { rules } });
-      setGroups(groups.map((g) => ({ ...g, rows: g.rows.slice().sort((a, b) => a.from - b.from) })));
+      setRules(rulesFromRows(res.data));
       setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save fees.");
@@ -286,78 +198,86 @@ export function FeeEditor({ eventId }: { eventId: number }) {
     }
   };
 
-  if (!groups) return error ? <Notice tone="error">{error}</Notice> : <Spinner />;
-
-  const single = groups.length === 1;
+  if (!rules) return error ? <Notice tone="error">{error}</Notice> : <Spinner />;
 
   return (
-    <div className="space-y-4">
-      {groups.map((g, gi) => (
-        <Card
-          key={g.id}
-          title={single ? "Entry fee" : `Fee list ${gi + 1}`}
-          description={single ? "Same fee for every member type. Set the fee by batch year; 0 means free." : "Applies to the member types ticked below."}
-          action={
-            !single ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-muted"
-                onClick={() => {
-                  // Merge this list's types into the first other list
-                  const target = groups.find((x) => x.id !== g.id)!;
-                  change(
-                    groups
-                      .filter((x) => x.id !== g.id)
-                      .map((x) => (x.id === target.id ? { ...x, types: [...x.types, ...g.types] } : x))
-                  );
-                }}
-              >
-                Remove list
-              </Button>
-            ) : undefined
-          }
-        >
-          <div className="mb-4">
-            <div className="text-sm font-medium text-ink/80 mb-2">Member types</div>
-            <TypePicker selected={g.types} onToggle={(t) => toggleType(g.id, t)} />
-          </div>
-          <BatchRows rows={g.rows} onChange={(rows) => change(groups.map((x) => (x.id === g.id ? { ...x, rows } : x)))} />
-        </Card>
-      ))}
+    <Card
+      title="Fee rules"
+      description="Each rule sets the entry fee for a range of batch years and the member types you select. Use 0 for free entry."
+    >
+      {rules.length === 0 ? (
+        <Notice tone="info">No rules yet. Add a rule to set the entry fee.</Notice>
+      ) : (
+        <ol className="space-y-3">
+          {rules.map((r, i) => (
+            <li key={r.key} className="rounded-lg border border-line p-3 sm:p-4">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="text-sm font-semibold text-ink">
+                  Rule {i + 1}
+                  <span className="ml-2 font-normal text-muted">
+                    {r.start && r.end ? `Batch ${r.start}–${r.end}` : ""} · {r.fee > 0 ? inr(r.fee) : "Free"}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Delete rule ${i + 1}`}
+                  className="text-muted px-2"
+                  onClick={() => {
+                    setSaved(false);
+                    setRules((rs) => rs && rs.filter((x) => x.key !== r.key));
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
 
-      {groups.length < REGISTRATION_MEMBERSHIP_TYPES.length && (
-        <Button variant="secondary" className="w-full" onClick={addGroup}>
-          <Plus className="w-4 h-4" />
-          Add a separate fee for some member types
-        </Button>
+              <div className="grid grid-cols-3 gap-2">
+                <label className="block">
+                  <span className="block text-xs font-medium text-muted mb-1">Start year</span>
+                  <Input type="number" inputMode="numeric" value={r.start || ""} onChange={(e) => update(r.key, { start: Number(e.target.value) })} />
+                </label>
+                <label className="block">
+                  <span className="block text-xs font-medium text-muted mb-1">End year</span>
+                  <Input type="number" inputMode="numeric" value={r.end || ""} onChange={(e) => update(r.key, { end: Number(e.target.value) })} />
+                </label>
+                <label className="block">
+                  <span className="block text-xs font-medium text-muted mb-1">Fee (₹)</span>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    value={r.fee}
+                    onChange={(e) => update(r.key, { fee: Math.max(0, Number(e.target.value) || 0) })}
+                  />
+                </label>
+              </div>
+
+              <div className="mt-3">
+                <span className="block text-xs font-medium text-muted mb-1.5">Member types</span>
+                <TypeChips selected={r.types} onChange={(types) => update(r.key, { types })} />
+              </div>
+            </li>
+          ))}
+        </ol>
       )}
 
-      <Card title="Summary">
-        <div className="space-y-3 text-sm">
-          {groups.map((g) => {
-            const rows = g.rows.slice().sort((a, b) => a.from - b.from);
-            return (
-              <div key={g.id}>
-                <div className="font-medium text-ink">{g.types.map((t) => TYPE_LABELS[t]).join(", ")}</div>
-                {rows.map((r, i) => (
-                  <div key={i} className="flex justify-between text-muted">
-                    <span>Batch {rangeLabel(rows, i)}</span>
-                    <span className="text-ink tabular-nums">{r.fee > 0 ? inr(r.fee) : "Free"}</span>
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-        <div className="mt-4 space-y-3">
-          {error && <Notice tone="error">{error}</Notice>}
-          {saved && <Notice tone="success">Fees saved.</Notice>}
-          <Button onClick={save} loading={saving} className="w-full sm:w-auto">
-            Save fees
-          </Button>
-        </div>
-      </Card>
-    </div>
+      <Button variant="secondary" className="mt-3 w-full sm:w-auto" onClick={addRule}>
+        <Plus className="w-4 h-4" /> Add rule
+      </Button>
+
+      <p className="mt-4 text-xs text-muted">
+        A batch or member type not covered by any rule uses the standard fee (₹500 up to 2000, ₹400 for 2001–2010,
+        ₹300 for 2011–2020, free from 2021).
+      </p>
+
+      <div className="mt-4 pt-4 border-t border-line space-y-3">
+        {error && <Notice tone="error">{error}</Notice>}
+        {saved && <Notice tone="success">Fee rules saved.</Notice>}
+        <Button onClick={save} loading={saving} className="w-full sm:w-auto">
+          Save fee rules
+        </Button>
+      </div>
+    </Card>
   );
 }

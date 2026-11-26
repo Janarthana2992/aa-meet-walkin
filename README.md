@@ -49,7 +49,7 @@ Volunteers check people in at the desk. Attendees do not check themselves in.
   - **People**: checked in vs not arrived, search, tap a person to correct details or payment.
   - **New alumni**: people added at the desk who were not on the alumni list, with a CSV download.
   - **Attendees**: upload the website's event attendees CSV.
-  - **Fees**: fee lists by batch (e.g. from 1988 ₹500, from 2001 ₹400, from 2021 free). One list covers every member type by default; **Add a separate fee for some member types** creates another list, and the member types (Patron, Life, Registered, Not a member) are ticked per list.
+  - **Fees**: fee rules. Each rule has a start year, end year, fee and the member types it applies to (Patron, Life, Registered, Not a member; select several). Rules for the same member type may not overlap.
   - **Desk PIN**: shown under the publish control; volunteers sign in with it.
   - **Settings**: edit details or delete the event.
 - **`/checkin`**: volunteers (desk PIN of the published event) see who has checked in and who has not arrived, and start new check-ins.
@@ -140,7 +140,7 @@ npm run start
 ### Running a new event (every time)
 1. **Members list** (from the events page): upload the latest `IRTT AA Members.csv`.
 2. **New event**: fill in the details. It is saved as a draft.
-3. In the event: **Attendees** → upload the website's event attendees CSV. **Fees** → set the fee for each batch range, and add a separate list if some member types pay differently.
+3. In the event: **Attendees** → upload the website's event attendees CSV. **Fees** → add fee rules (start year, end year, fee, member types).
 4. On the day: **Publish** the event and set the **Desk PIN** on the event page. Give the PIN to the volunteers.
 5. Volunteers sign in at `/admin/login` → *Desk volunteer* and use **New check-in**:
    - Registered for the event → search by email or mobile.

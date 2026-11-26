@@ -85,7 +85,7 @@ const EMPTY_FORM: FormState = {
 function feeFor(rules: EventFeeConfiguration[], year: number, membership: RegistrationMembershipType): number {
   const active = rules.filter((r) => r.is_active);
   const inRange = (r: EventFeeConfiguration) => year >= r.min_graduating_year && year <= r.max_graduating_year;
-  const rule = active.find((r) => r.membership_type === membership && inRange(r)) || active.find(inRange);
+  const rule = active.find((r) => r.membership_type === membership && inRange(r));
   if (rule) return Number(rule.registration_fee) || 0;
   const tier = DEFAULT_BATCH_FEE_TIERS.find((t) => year >= t.minGraduatingYear && year <= t.maxGraduatingYear);
   return tier ? tier.registrationFee : 0;
