@@ -199,6 +199,7 @@ function RegisterFlow() {
     setPaymentMode("ONLINE");
     setUtrLast4("");
     setFormError(null);
+    setReviewNote(null);
     setRegistration(null);
     go("find");
   };
@@ -214,13 +215,48 @@ function RegisterFlow() {
     go("details");
   };
 
-  const toReview = (e: React.FormEvent) => {
+  const [reviewNote, setReviewNote] = useState<string | null>(null);
+
+  const toReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.stream) return setFormError("Choose the branch.");
     if (total > 0 && paymentMode === "ONLINE" && !/^[0-9]{4}$/.test(utrLast4)) {
       return setFormError("Enter the last 4 digits of the UPI reference number.");
     }
     setFormError(null);
+    setReviewNote(null);
+
+    // A "new" person may already be on the alumni list (fees can differ by
+    // member type), or already checked in. Check by email, then mobile.
+    if (kind === "new" && event) {
+      for (const q of [form.email, form.mobile].filter((v) => v.trim())) {
+        try {
+          const { data } = await api<{ data: VenueLookupResult }>("/api/venue/lookup", {
+            method: "POST",
+            json: { query: q.trim(), eventId: event.event_id },
+          });
+          if (data.alreadyRegistered && data.existingRegistration) {
+            setRegistration(data.existingRegistration);
+            go("done");
+            return;
+          }
+          if (data.found && data.prefill && data.source !== "NONE") {
+            const p = data.prefill;
+            const onAttendeeList = data.source === "PRE_REGISTERED";
+            setForm((f) => ({ ...f, memberLoginId: p.member_login_id, membershipTypeUsed: p.membership_type_used }));
+            setKind(onAttendeeList ? "attendee" : "member");
+            setReviewNote(
+              onAttendeeList
+                ? `${p.full_name} is on this event's attendee list. Their registration will be used.`
+                : `${p.full_name} is on the alumni list, so the member fee applies.`
+            );
+            break;
+          }
+        } catch {
+          // Lookup is a convenience here; the server re-checks on submit
+        }
+      }
+    }
     go("review");
   };
 
@@ -381,6 +417,7 @@ function RegisterFlow() {
               utrLast4,
             }}
           />
+          {reviewNote && <Notice tone="info">{reviewNote}</Notice>}
           {formError && <Notice tone="error">{formError}</Notice>}
         </Page>
         <div className="fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur border-t border-line shadow-[0_-4px_12px_rgba(16,24,40,0.06)]">
